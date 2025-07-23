@@ -37,6 +37,7 @@ import axios from "axios";
       const fetchData = async () => {
         let data = null
         try {
+          console.log(address)
           if (address == "Hà Nội"){
             const response = await axios.get("http://localhost:5000/hanoi")
             data = response.data
@@ -54,28 +55,25 @@ import axios from "axios";
 
             for (const item of data) {
               const key = `${item.buoi}|${item.dia_diem}|${item.slot}|${item.ngay_thi}`;
-              if (!map.has(key)) map.set(key, item);
-            }
-
-            return Array.from(map.values());
-          })();
-          const sortedList = Array.from(distinctList.values()).sort((a, b) => {
-            const cmpDiaDiem = a.ngay_thi.localeCompare(b.ngay_thi); // DESC
-            if (cmpDiaDiem !== 0) return cmpDiaDiem;
-
-            return b.buoi.localeCompare(a.buoi); // DESC
-          });
-          // console.log(sortedList)
-          const processedData = sortedList.map((item) => {
-            
-          return {
-            id : `${item.shift}|${item.date}|${item.location}`,
-            slot: item.slot, 
-            shift: typeof item?.buoi === 'string'
-                ? (item.buoi.includes("sáng") ? "Sáng"
+              item.buoi = (typeof item?.buoi === 'string')? (item.buoi.includes("sáng") ? "Sáng"
                   : item.buoi.includes("chiều") ? "Chiều"
                   : "Không có dữ liệu")
-                : "Không có dữ liệu",
+                : "Không có dữ liệu"
+              item.date = item?.ngay_thi
+                ? item.ngay_thi.trim()
+                : "Không có dữ liệu"
+              if (!map.has(key)) map.set(key, item);
+            }
+            
+            return Array.from(map.values());
+          })();
+          let id = 0
+          const processedData = distinctList.map((item) => {
+
+          return {
+            id : id++,
+            slot: item.slot, 
+            shift: item.buoi,
             date: item?.ngay_thi
                 ? item.ngay_thi.trim()
                 : "Không có dữ liệu",
@@ -85,7 +83,6 @@ import axios from "axios";
             
           };
         });
-          console.log(processedData)
           setRows(processedData)
           setFilteredRows(processedData)
         }
