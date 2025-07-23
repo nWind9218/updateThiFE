@@ -12,7 +12,7 @@ export default function DropAddress({ address, setAddress }) {
 
   return (
     <div>
-      <FormControl required sx={{ m: 1, minWidth: 120 }}>
+      <FormControl required sx={{ m: 1, minWidth: 300 }}>
         <InputLabel id="selector_address">Địa chỉ</InputLabel>
         <Select
           labelId="selector_address"
@@ -21,10 +21,9 @@ export default function DropAddress({ address, setAddress }) {
           label="Địa chỉ"
           onChange={handleChange}
         >
-          <MenuItem value="HaNoi">Hà Nội</MenuItem>
-          <MenuItem value="DaNang">Đà Nẵng</MenuItem>
-          <MenuItem value="TpHCM">TP. Hồ Chí Minh</MenuItem>
-          <MenuItem value="All">Tất cả</MenuItem>
+          <MenuItem value="Hà Nội">Hà Nội</MenuItem>
+          <MenuItem value="Đà Nẵng">Đà Nẵng</MenuItem>
+          <MenuItem value="TP. Hồ Chí Minh">TP. Hồ Chí Minh</MenuItem>
         </Select>
       </FormControl>
     </div>

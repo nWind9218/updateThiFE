@@ -14,25 +14,25 @@
 import axios from "axios";
 
 
-  const examShiftsData = [
-    { value: "Ca 1 buổi sáng", label: "Ca 1 buổi sáng" },
-    { value: "Ca 2 buổi sáng", label: "Ca 2 buổi sáng" },
-    { value: "Ca 3 buổi sáng", label: "Ca 3 buổi sáng" },
-    { value: "Ca 1 buổi chiều", label: "Ca 1 buổi chiều" },
-    { value: "Ca 2 buổi chiều", label: "Ca 2 buổi chiều" },
-    { value: "Ca 3 buổi chiều", label: "Ca 3 buổi chiều" }
-  ];
-  // const capitalize = (str) => str.charAt(0).toUpperCase() + str.slice(1); hello => Hello
+  // const updateExamShiftData = [
+  //   { value: "Ca 1 buổi sáng", time: "07h45 - 09h15"},
+  //   { value: "Ca 2 buổi sáng", time: "09h30 - 11h00"},
+  //   { value: "Ca 3 buổi sáng", time: "11h00 - 12h30"},
+  //   { value: "Ca 1 buổi chiều", time: "14h00 - 15h30"},
+  //   { value: "Ca 2 buổi chiều", time: "15h30 - 17h00"},
+  //   { value: "Ca 3 buổi chiều", time: "17h00 - 18h30"}
+  // ];
+  // const capitalize = (str) => str.charAt(0).toUpperCase() + str.slice(1);// hello => Hello
   const Body = () => {
-    const [address, setAddress] = useState("All");
-    const [shift, setShift] = useState("");
-    const [date, setDate] = useState(null);
-    const [rows, setRows] = useState([]);
+    const [address, setAddress] = useState("Hà Nội");
+    const [reload, setReload] = useState(false)
+    const [, setShift] = useState("");
+    const [, setDate] = useState(null);
+    const [, setRows] = useState([]);
     const [filteredRows, setFilteredRows] = useState([]);
     const initialShift = "";
     const initialDate = null;
-    const initialAddress = "All";
-
+    const initialAddress = "Hà Nội";
     useEffect(() => {
       const fetchData = async () => {
         let data = null
@@ -49,23 +49,32 @@ import axios from "axios";
             const response = await axios.get("http://localhost:5000/tphcm")
             data = response.data
           }
-          else{
-            const response = await axios.get("http://localhost:5000/all")
-            data = response.data
-          }
-          const processedData = data.map((item) => {
+          const distinctList = (() => {
+            const map = new Map();
+
+            for (const item of data) {
+              const key = `${item.buoi}|${item.dia_diem}|${item.slot}|${item.ngay_thi}`;
+              if (!map.has(key)) map.set(key, item);
+            }
+
+            return Array.from(map.values());
+          })();
+          const sortedList = Array.from(distinctList.values()).sort((a, b) => {
+            const cmpDiaDiem = a.ngay_thi.localeCompare(b.ngay_thi); // DESC
+            if (cmpDiaDiem !== 0) return cmpDiaDiem;
+
+            return b.buoi.localeCompare(a.buoi); // DESC
+          });
+          // console.log(sortedList)
+          const processedData = sortedList.map((item) => {
+            
           return {
-            id: item?.id?.toString() || "Không có dữ liệu",
-            ca: typeof item?.ca_thi === 'string'
-                ? item.ca_thi.split(' ')[1] || "Không có dữ liệu"
-                : "Không có dữ liệu",
+            id : `${item.shift}|${item.date}|${item.location}`,
+            slot: item.slot, 
             shift: typeof item?.buoi === 'string'
                 ? (item.buoi.includes("sáng") ? "Sáng"
                   : item.buoi.includes("chiều") ? "Chiều"
                   : "Không có dữ liệu")
-                : "Không có dữ liệu",
-            time: typeof item?.gio_thi === 'string'
-                ? item.gio_thi
                 : "Không có dữ liệu",
             date: item?.ngay_thi
                 ? item.ngay_thi.trim()
@@ -73,8 +82,10 @@ import axios from "axios";
             location: typeof item?.dia_diem === 'string'
                 ? item.dia_diem.replace("Thi tại ", "")
                 : "Không có dữ liệu",
+            
           };
         });
+          console.log(processedData)
           setRows(processedData)
           setFilteredRows(processedData)
         }
@@ -83,42 +94,17 @@ import axios from "axios";
         }
       }
       fetchData()
-    }, [address]);
-    console.log(address)
-    console.log(shift)
-    console.log(date)
+    }, [address, reload]);
     const handleResetFilter = () => {
         setAddress(initialAddress);
         setShift(initialShift);
         setDate(initialDate);
       };
     const handleFilter = () => {
-      let result = [...rows];
-      // Filter theo address trước (luôn All hoặc 1 địa chỉ)
-      if (address && address !== "All") {
-        result = result.filter((row) => row.location === address);
-      }
-      // Nếu shift có giá trị (tức khác giá trị khởi tạo), filter thêm theo shift
-      if (shift && shift !== initialShift) {
-        result = result.filter((row) => row.shift && row.shift.includes(shift));
-      }
-      // Nếu date có giá trị (khác null), filter thêm theo date
-      if (date && date !== initialDate) {
-        const target = date.toISOString().slice(0, 10);
-        result = result.filter((row) => {
-          // row.date phải là object Date hoặc dạng ISO, nếu string thì convert
-          let rowDate;
-          if (typeof row.date === 'string') {
-            rowDate = new Date(row.date);
-          } else {
-            rowDate = row.date;
-          }
-          return rowDate && rowDate.toISOString && rowDate.toISOString().slice(0, 10) === target;
-        });
-      }
-      setFilteredRows(result);
+      // let result = [...rows];
+      setReload(!reload)
+      // setFilteredRows(result);
     };
-
     return (
       <Box
         sx={{
@@ -159,31 +145,9 @@ import axios from "axios";
               </Box>
             </Grid>
             <Grid item xs={12} md={9}>
-              <Grid container spacing={2} alignItems="center" flexWrap="wrap">
+              <Grid container spacing={10} alignItems="center" flexWrap="wrap">
                 <Grid item xs={12} sm={4} md={3}>
                   <DropAddress address={address} setAddress={setAddress} />
-                </Grid>
-                <Grid item xs={12} sm={4} md={3}>
-                  <Box sx={{ display: "flex", alignItems: "center" }}>
-                    <CalendarMonthIcon color="secondary" sx={{ mr: 1 }} />
-                    <DropDate
-                      address={address}
-                      value={date}
-                      onChange={setDate}
-                    />
-                  </Box>
-                </Grid>
-                <Grid item xs={12} sm={4} md={3}>
-                  <Box sx={{ display: "flex", alignItems: "center" }}>
-                    <AccessTimeIcon color="action" sx={{ mr: 1 }} />
-                    <DropShift
-                    address={address}
-                    examShifts={examShiftsData}
-                    shift={shift}
-                    setShift={setShift}
-                  />
-                  
-                  </Box>
                 </Grid>
                 <Grid item xs={12} sm={12} md={3}>
                   <Box
@@ -206,12 +170,13 @@ import axios from "axios";
                       }}
                       onClick={handleFilter}
                     >
-                      Filter
+                      Reload
                     </Button>
                     <Button
                       variant="outlined"
                       color="secondary"
                       size="large"
+                      disabled = "true"
                       sx={{
                         fontWeight: 700,
                         px: 4,
@@ -242,7 +207,7 @@ import axios from "axios";
             minHeight: 500,
           }}
         >
-          <DatTable rows={filteredRows} setRows={setRows} />
+          <DatTable rows={filteredRows} setRows={setRows} area={address}/>
         </Box>
       </Box>
     );

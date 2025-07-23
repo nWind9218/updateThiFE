@@ -5,7 +5,6 @@ import {
   GridRowModes,
   QuickFilter,
 } from '@mui/x-data-grid';
-import { faker } from '@faker-js/faker';
 import Button from '@mui/material/Button';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/DeleteOutlined';
@@ -53,7 +52,6 @@ function TableActions(props) {
       }
     }
   };
-  console.log(selectionModel.length)
   const handleSaveClick = () => {
     if (selectedRowId) {
       setRowModesModel({ ...rowModesModel, [selectedRowId]: { mode: GridRowModes.View } });
@@ -81,8 +79,17 @@ function TableActions(props) {
 
   return (
     <Toolbar sx={{ mb: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-      <Typography variant="h6" component="div">
-        Quản lý ca làm việc
+     <Typography
+        variant="h5"
+        component="div"
+        sx={{
+          fontWeight: 'bold',
+          textAlign: 'center',
+          color: 'primary.main',
+          mb: 2, // margin bottom
+        }}
+      >
+        Dữ liệu quản lý ca thi
       </Typography>
       <Box>
         {!isInEditMode ? (
@@ -130,7 +137,7 @@ function TableActions(props) {
   );
 }
 
-export default function DatTable({ rows, setRows }) {
+export default function DatTable({ rows, setRows, area }) {
   const [rowModesModel, setRowModesModel] = React.useState({});
   const [selectionModel, setSelectionModel] = React.useState([]);
   const [openDeleteConfirm, setOpenDeleteConfirm] = React.useState(false);
@@ -150,8 +157,7 @@ export default function DatTable({ rows, setRows }) {
   };
   const validateNewRowData = (data) => {
     const errors = {};
-    if (!data.ca || data.ca.trim() === "") errors.ca = "Vui lòng nhập ca";
-    if (!data.shift || data.shift.trim() === "") errors.shift = "Vui lòng chọn buổi";
+    if (!data.slot || data.slot.trim() === "") errors.ca = "Vui lòng nhập số lượng slot";
     if (!data.time || data.time.trim() === "") errors.time = "Vui lòng nhập thời gian";
     if (!data.date) errors.date = "Vui lòng chọn ngày";
     if (!data.location || data.location.trim() === "") errors.location = "Vui lòng nhập địa điểm";
@@ -165,8 +171,8 @@ export default function DatTable({ rows, setRows }) {
   const [openAddDialog, setOpenAddDialog] = React.useState(false);
   const [newRowData, setNewRowData] = React.useState({
     shift: '',
-    ca : '',
-    time: '',
+    slot : '',
+    area: area,
     date: dayjs('DD/MM/YYYY'),
     location: '',
   });
@@ -183,7 +189,9 @@ export default function DatTable({ rows, setRows }) {
       isNew: false,
       date: newRow.date,
     };
-    setRows(rows.map((row) => (row.id === newRow.id ? updatedRow : row)));
+    setRows(rows.map((row) => { 
+      return row.id === newRow.id ? updatedRow : row
+    }));
     return updatedRow;
   };
 
@@ -197,6 +205,7 @@ export default function DatTable({ rows, setRows }) {
       time: '',
       date: dayjs('DD/MM/YYYY'),
       location: '',
+      area : area
     });
     setOpenAddDialog(true);
   };
@@ -204,17 +213,16 @@ export default function DatTable({ rows, setRows }) {
   const handleCloseAddDialog = () => {
     setOpenAddDialog(false);
     setNewRowData({
-      ca: '',
-      shift: '',
-      time: '',
+      shift: '',  
       date: dayjs('DD/MM/YYYY'),
       location: '',
+      area:area,
+      slot:'',
     });
     setAddDialogErrors({})
   };
 
   const handleAddDialogChange = (field, value) => {
-    console.log(typeof newRowData.date === 'string')
     setNewRowData({ ...newRowData, [field]: value });
   };
 
@@ -225,12 +233,13 @@ export default function DatTable({ rows, setRows }) {
       // Có lỗi, không thêm
       return;
     }
-    const id = faker.string.uuid();
+    const id = rows.length + 1;
     const rowToAdd = {
       id,
       ...newRowData,
       isNew: false,
       date: newRowData.date instanceof Date ? newRowData.date : new Date(newRowData.date),
+      area: newRowData.area?? area
     };
     setRows((oldRows) => [rowToAdd, ...oldRows]);
     handleCloseAddDialog();
@@ -263,32 +272,54 @@ export default function DatTable({ rows, setRows }) {
   };
 
   const handleEditDialogChange = (field, value) => {
+    console.log(editingRowData)
     if (editingRowData) {
       setEditingRowData({ ...editingRowData, [field]: value });
     }
   };
 
   const handleSaveEditDialog = () => {
+    // if (editingRowData) {
+    //   processRowUpdate(editingRowData);
+    //   handleCloseEditDialog();
+    // }
     if (editingRowData) {
-      processRowUpdate(editingRowData);
+      const updatedId = `${editingRowData.shift}-${editingRowData.date}-${editingRowData.location}`;
+      const updatedRow = {
+        ...editingRowData,
+        id: updatedId,
+        date: dayjs(editingRowData.date).toDate(),
+      };
+
+      setRows((oldRows) => {
+        const idx = oldRows.findIndex((row) => row.id === editingRowData.id);
+        console.log(idx)
+        if (idx !== -1) {
+          console.log('here')
+          const updated = [...oldRows];
+          updated[idx] = updatedRow;
+          return updated;
+        }
+        return oldRows;
+      });
       handleCloseEditDialog();
     }
   };
-
   const columns = [
+    { field: 'id', headerName: 'ID', width: 150, editable: false },
     { field: 'shift', headerName: 'Buổi', width: 150, editable: false },
-    { field: 'ca', headerName: 'Ca', width: 150, editable: false },
-    { field: 'time', headerName: 'Thời gian', width: 180, editable: false },
     {
       field: 'date',
-      headerName: 'Ngày',
+      headerName: 'Thời gian',
       type: 'date',
       width: 150,
       editable: false
     },
-    { field: 'location', headerName: 'Địa điểm', width: 200, editable: false },
+    { field: 'location', headerName: 'Địa điểm', width: 400, editable: false },
+    { field: 'slot', headerName: 'Số lượng Slot', width: 200, editable: false },
+    { field: 'area', headerName: 'Thành phố', width: 300, editable: false },
+
   ];
-  const paginationModel = { page: 0, pageSize: 5 }; 
   return (
     <LocalizationProvider dateAdapter={AdapterDayjs}>
       <Box sx={{ px: 0, minHeight: 350, width: '100%' }}>
@@ -308,11 +339,10 @@ export default function DatTable({ rows, setRows }) {
         <DataGrid
           rows={rows.map(row => ({
             ...row,
-            date: row.date instanceof Date ? row.date : dayjs(row.date, 'DD/MM/YYYY').toDate()
+            date: row.date instanceof Date ? row.date : dayjs(row.date, 'DD/MM/YYYY').toDate(),
+            area: row.area ?? area,
           }))}
-          pageSizeOptions={[5,10]}
-          pagination
-          initialState={{pagination : {paginationModel}}}
+          sx={{height: 400}}
           columns={columns}
           editMode="row"
           rowModesModel={rowModesModel}
@@ -320,6 +350,7 @@ export default function DatTable({ rows, setRows }) {
           onRowEditStop={handleRowEditStop}
           processRowUpdate={processRowUpdate}
           checkboxSelection
+          hideFooter={true}
           onRowSelectionModelChange={(newSelectionModel) => {
             const newSelectedRows = new Set([...newSelectionModel.ids]);
             setSelectionModel([...newSelectedRows]);
@@ -355,27 +386,14 @@ export default function DatTable({ rows, setRows }) {
           <DialogContent>
             {editingRowData && (
               <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: 1 }}>
-              <TextField
-                  label="Ca"
-                  value={editingRowData.shift}
-                  onChange={(e) => handleEditDialogChange('ca', e.target.value)}
-                  fullWidth
-                />
                 <TextField
                   label="Buổi"
                   value={editingRowData.shift}
                   onChange={(e) => handleEditDialogChange('shift', e.target.value)}
                   fullWidth
                 />
-                <TextField
-                  label="Thời gian"
-                  value={editingRowData.time}
-                  onChange={(e) => handleEditDialogChange('time', e.target.value)}
-                  fullWidth
-                />
-                
                 <DatePicker
-                  label="Ngày"
+                  label="Thời gian"
                   value={
                     editingRowData?.date
                       ? (typeof editingRowData.date === 'string'
@@ -396,6 +414,14 @@ export default function DatTable({ rows, setRows }) {
                   onChange={(e) => handleEditDialogChange('location', e.target.value)}
                   fullWidth
                 />
+                
+                <TextField
+                  label="Số lượng slot"
+                  value={editingRowData.slot}
+                  onChange={(e) => handleEditDialogChange('slot', e.target.value)}
+                  fullWidth
+                />
+                
               </Box>
             )}
           </DialogContent>
@@ -412,14 +438,6 @@ export default function DatTable({ rows, setRows }) {
           <DialogTitle>Thêm ca thi mới</DialogTitle>
           <DialogContent>
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: 1 }}>
-              <TextField
-                label="Ca"
-                value={newRowData.ca}
-                onChange={(e) => handleAddDialogChange('ca', e.target.value)}
-                fullWidth
-                error={!!addDialogErrors.ca}
-                helperText={addDialogErrors.ca}
-              />
               <FormControl fullWidth error={!!addDialogErrors.shift}>
                 <InputLabel>Buổi</InputLabel>
                 <Select
@@ -432,14 +450,6 @@ export default function DatTable({ rows, setRows }) {
                 </Select>
                 {addDialogErrors.shift && <Typography variant="caption" color="error">{addDialogErrors.shift}</Typography>}
               </FormControl>
-              <TextField
-                label="Thời gian"
-                value={newRowData.time}
-                onChange={(e) => handleAddDialogChange('time', e.target.value)}
-                fullWidth
-                error={!!addDialogErrors.time}
-                helperText={addDialogErrors.time}
-              />
               <DatePicker
                 label="Ngày"
                 value={newRowData.date}
@@ -460,6 +470,15 @@ export default function DatTable({ rows, setRows }) {
                 fullWidth
                 error={!!addDialogErrors.location}
                 helperText={addDialogErrors.location}
+              />
+              
+              <TextField
+                label="Slot"
+                value={newRowData.slot}
+                onChange={(e) => handleAddDialogChange('slot', e.target.value)}
+                fullWidth
+                error={!!addDialogErrors.slot}
+                helperText={addDialogErrors.slot}
               />
             </Box>
           </DialogContent>
