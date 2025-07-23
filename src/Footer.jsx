@@ -1,7 +1,7 @@
 import React from 'react';
 
 const footerStyle = {
-    background: 'linear-gradient(90deg, #222 0%, #444 100%)',
+    background: 'linear-gradient(90deg, #1b5e20 0%, #388e3c 100%)', // xanh lá cây đậm
     color: '#fff',
     textAlign: 'center',
     padding: '1.2rem 0',
@@ -28,7 +28,7 @@ const footerSubStyle = {
 const Footer = () => (
     <footer style={footerStyle}>
         <span style={footerTitleStyle}>
-            © {new Date().getFullYear()} ManhProject.
+            © {new Date().getFullYear()} AI Pencil.
         </span>
         <span style={footerSubStyle}>
             All rights reserved.
