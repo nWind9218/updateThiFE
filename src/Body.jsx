@@ -1,4 +1,4 @@
-  import React, { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
   import DropAddress from "./utils/DropAddress";
   import DropShift from "./utils/DropShift";
   import DropDate from "./utils/DropDate";
@@ -107,10 +107,10 @@ import axios from "axios";
         sx={{
           minHeight: "100vh",
           width: "100vw",
-          bgcolor: "linear-gradient(135deg, #e3f2fd 0%, #fce4ec 100%)",
+          bgcolor: "linear-gradient(135deg, #e8f5e9 0%, #a5d6a7 100%)", // xanh lá cây nhạt
           boxSizing: "border-box",
-          pt: { xs: "74px", sm: "50px" }, // Đẩy body xuống để tránh bị header đè (header fixed height ~60-70px)
-          pb: { xs: "64px", sm: "64px" }, // Tránh bị footer đè lên
+          pt: { xs: "74px", sm: "50px" },
+          pb: { xs: "64px", sm: "64px" },
         }}
       >
         {/* Filter Section */}
@@ -123,15 +123,28 @@ import axios from "axios";
             width: "100%",
             maxWidth: 1430,
             mx: "auto",
-            mt: { xs: 3, md: 5 }, // Cách header rõ ràng hơn
+            mt: { xs: 3, md: 5 },
             mb: { xs: 3, md: 5 },
-            background: "rgba(255,255,255,0.96)",
+            background: "rgba(232,245,233,0.96)", // xanh lá cây nhạt
             boxShadow: "0 8px 40px 0 rgba(31,38,135,0.12)",
           }}
         >
           <Grid container spacing={2} alignItems="center" justifyContent="space-between" flexWrap="wrap">
             <Grid item xs={12} md={3} sx={{ display: "flex", alignItems: "center", mb: { xs: 1.5, md: 0 } }}>
-              <EmojiEventsIcon color="primary" sx={{ fontSize: 38, mr: 1 }} />
+              <Box
+    component="img"
+    src="/logo.jpg"
+    alt="Logo"
+    sx={{
+      width: 38,
+      height: 38,
+      mr: 1,
+      borderRadius: "8px",
+      objectFit: "cover",
+      boxShadow: 2,
+      background: "#fff"
+    }}
+  />
               <Box>
                 <Typography variant="h5" fontWeight={700} color="primary">
                   Quản lý ca thi
