@@ -27,6 +27,7 @@ import FormControl from '@mui/material/FormControl';
 import InputLabel from '@mui/material/InputLabel';
 import Select from '@mui/material/Select';
 import MenuItem from '@mui/material/MenuItem';
+import axios from 'axios';
 function TableActions(props) {
   const {
     rows,
@@ -108,7 +109,8 @@ function TableActions(props) {
             <Button
               startIcon={<EditIcon />}
               onClick={handleEditClick}
-              disabled={selectionModel.length!==1}
+              // disabled={selectionModel.length!==1}
+              disabled={true}
               sx={{ mr: 1 }}
             >
               Cập nhật
@@ -137,28 +139,135 @@ function TableActions(props) {
   );
 }
 
-export default function DatTable({ rows, setRows, area }) {
+export default function DatTable({ rows, setRows, area, reload, setReload }) {
   const [rowModesModel, setRowModesModel] = React.useState({});
   const [selectionModel, setSelectionModel] = React.useState([]);
   const [openDeleteConfirm, setOpenDeleteConfirm] = React.useState(false);
   const [openEditDialog, setOpenEditDialog] = React.useState(false);
   const [editingRowData, setEditingRowData] = React.useState(null);
+  const [needBackend, setNeedBackend] = React.useState(false)
   const [originalRows, setOriginalRows] = React.useState(rows);
   const [hasChanges, setHasChanges] = React.useState(false);
   const [openConfirmSaveDialog, setOpenConfirmSaveDialog] = React.useState(false);
   const [addDialogErrors, setAddDialogErrors] = React.useState({});
   const handleOpenConfirmSave = () => setOpenConfirmSaveDialog(true);
   const handleCloseConfirmSave = () => setOpenConfirmSaveDialog(false);
+  React.useEffect(() => {
+      if (!needBackend) return;
+      const fetchData = async () => {
+        let data = null
+        try {
+          if (area == "Hà Nội"){
+            const response = await axios.get("http://localhost:5000/hanoi")
+            data = response.data
+          
+          }
+          else if (area == "Đà Nẵng"){
+            const response = await axios.get("http://localhost:5000/danang")
+            data = response.data
+          }
+          else if (area == "TP. Hồ Chí Minh"){
+            const response = await axios.get("http://localhost:5000/tphcm")
+            data = response.data
+          }
+          
+          const distinctList = (() => {
+            const map = new Map();
+
+            for (const item of data) {
+              const key = `${item.buoi}|${item.dia_diem}|${item.slot}|${item.ngay_thi}`;
+              item.buoi = (typeof item?.buoi === 'string')? (item.buoi.includes("sáng") ? "Sáng"
+                  : item.buoi.includes("chiều") ? "Chiều"
+                  : "Không có dữ liệu")
+                : "Không có dữ liệu"
+              item.date = item?.ngay_thi
+                ? item.ngay_thi.trim()
+                : "Không có dữ liệu"
+              if (!map.has(key)) map.set(key, item);
+            }
+            return Array.from(map.values());
+          })();
+          const processedData = distinctList.map((item) => {
+            return {
+              slot: item.slot, 
+              shift: item.buoi,
+              date: item?.ngay_thi
+                  ? item.ngay_thi.trim()
+                  : "Không có dữ liệu",
+              location: typeof item?.dia_diem === 'string'
+                  ? item.dia_diem.replace("Thi tại ", "")
+                  : "Khác",
+              area: area,
+              ca: item.ca_thi== null?'': item.ca_thi,
+              time: item.gio_thi == null?'': item.gio_thi
+            };
+          });
+          setOriginalRows(processedData)
+        }
+        catch(error){
+          console.error("Lỗi khi lấy dữ liệu: ", error)
+        }
+        finally{
+          setNeedBackend(false)
+        }
+      }
+      fetchData()
+    }, [needBackend, area]);
+  // Handle Sending Request To Server for Update Information
+  const CA_THI = ['Ca 1', 'Ca 2','Ca 3']
+  const GIO_THI_SANG = ['07h45 - 09h15','09h30 - 11h00', '11h00 - 12h30']
+  const GIO_THI_CHIEU = ['14h00 - 15h30', '15h30 - 17h00','17h00 - 18h30']
+  const FullyFormatDataFromTable = (originalRows) =>{
+    if (!Array.isArray(originalRows)) return [];
+    const result = [];
+    if (area == 'Hà Nội' || area == 'TP. Hồ Chí Minh'){
+    originalRows.forEach((originalRow) => {
+      for (let i = 0; i < 3; i++) {
+        result.push({
+          ca_thi: CA_THI[i],
+          buoi: originalRow.shift.includes('Sáng')? 'buổi sáng': 'buổi chiều',
+          ngay_thi:originalRow.date,
+          gio_thi: originalRow.shift.includes('Sáng')?GIO_THI_SANG[i]:GIO_THI_CHIEU[i],
+          dia_diem:originalRow.location.includes("Khác")?"Khác": originalRow.location,
+          slot: originalRow.slot.toString()
+        });
+      }
+    });}
+    else {
+      originalRows.forEach((originalRow) => {
+        result.push({
+          buoi: originalRow.shift.includes('Không có dữ liệu')? 'Không có dữ liệu': originalRow.shift,
+          ngay_thi:originalRow.date,
+          dia_diem:originalRow.location.includes("Khác")?"Khác": originalRow.location,
+          slot: originalRow.slot.toString()
+        });
+      })
+    }
+    return result;
+  }
   const handleConfirmSave = () => {
-    // Gọi API tại đây nếu cần
-    setOriginalRows(rows);
-    setHasChanges(false);
+    // setNeedBackend(true)
+    const newRowsUpdate = FullyFormatDataFromTable(rows)
+    console.log(newRowsUpdate)
+    const dataSent = 
+    {
+      data: newRowsUpdate,
+      area: area
+    }
+    axios.post("http://localhost:5000/updateTinZ", dataSent)
+      .then((response) => {
+        console.log("Dữ liệu đã được cập nhật thành công:", response.data.inserted);
+      })
+      .catch((error) => {
+        console.error("Lỗi khi gửi dữ liệu:", error);
+      });
     setOpenConfirmSaveDialog(false);
+    setReload(!reload)
   };
+  // VALIDATE INFOMATION
   const validateNewRowData = (data) => {
     const errors = {};
     if (!data.slot || data.slot.trim() === "") errors.ca = "Vui lòng nhập số lượng slot";
-    if (!data.time || data.time.trim() === "") errors.time = "Vui lòng nhập thời gian";
     if (!data.date) errors.date = "Vui lòng chọn ngày";
     if (!data.location || data.location.trim() === "") errors.location = "Vui lòng nhập địa điểm";
     return errors;
@@ -167,7 +276,7 @@ export default function DatTable({ rows, setRows, area }) {
     const isChanged = JSON.stringify(rows) !== JSON.stringify(originalRows);
     setHasChanges(isChanged);
   }, [rows, originalRows]);
-
+  // ADD DIALOG
   const [openAddDialog, setOpenAddDialog] = React.useState(false);
   const [newRowData, setNewRowData] = React.useState({
     shift: '',
@@ -202,14 +311,14 @@ export default function DatTable({ rows, setRows, area }) {
   const handleAddClick = () => {
     setNewRowData({
       shift: '',
-      time: '',
       date: dayjs('DD/MM/YYYY'),
       location: '',
-      area : area
+      area : area,
+      slot: ''
     });
     setOpenAddDialog(true);
   };
-
+  
   const handleCloseAddDialog = () => {
     setOpenAddDialog(false);
     setNewRowData({
@@ -225,23 +334,23 @@ export default function DatTable({ rows, setRows, area }) {
   const handleAddDialogChange = (field, value) => {
     setNewRowData({ ...newRowData, [field]: value });
   };
-
   const handleSaveAddDialog = () => {
     const errors = validateNewRowData(newRowData);
     setAddDialogErrors(errors);
     if (Object.keys(errors).length > 0) {
-      // Có lỗi, không thêm
+      console.error(errors)
       return;
     }
     const id = rows.length + 1;
     const rowToAdd = {
-      id,
       ...newRowData,
-      isNew: false,
-      date: newRowData.date instanceof Date ? newRowData.date : new Date(newRowData.date),
+      id,
+      // isNew: false,
+      date: dayjs(newRowData.date).format('DD/MM/YYYY'),
       area: newRowData.area?? area
     };
-    setRows((oldRows) => [rowToAdd, ...oldRows]);
+    const newRows = [rowToAdd, ...rows]
+    setRows(newRows);
     handleCloseAddDialog();
     setAddDialogErrors({}); // clear lỗi sau khi thêm thành công
   };
@@ -256,11 +365,19 @@ export default function DatTable({ rows, setRows, area }) {
   };
 
   const handleConfirmDelete = () => {
-    setRows(rows.filter((row) => !selectionModel.includes(row.id)));
-    setSelectionModel([]);
+    // Lọc row không bị xóa
+    const filteredRows = rows.filter((row) => !selectionModel.ids.has(row.id));
+    // Gán lại id tăng dần từ 1
+    const newRows = filteredRows.map((row, idx) => ({
+      ...row,
+      id: idx + 1,
+    }));
+    setRows(newRows);
+    setTimeout(() => {
+      setSelectionModel([]);
+    }, 0);
     handleCloseDeleteConfirm();
   };
-
   const handleOpenEditDialog = (row) => {
     setEditingRowData(row);
     setOpenEditDialog(true);
@@ -271,10 +388,37 @@ export default function DatTable({ rows, setRows, area }) {
     setEditingRowData(null);
   };
 
+  const areRowsEqual = (rows1, rows2) => { // Used for edit
+      if (rows1.length !== rows2.length) return false;
+      const normalize = (row) => ({
+        slot: String(row.slot).trim(),
+        shift: String(row.shift).trim(),
+        date: dayjs(row.date).format('DD/MM/YYYY'),
+        location: String(row.location).trim(),
+      });
+      const sorted1 = [...rows1].map(normalize).sort((a, b) =>
+        (a.shift + a.date + a.location + a.slot).localeCompare(b.shift + b.date + b.location + b.slot)
+      );
+      const sorted2 = [...rows2].map(normalize).sort((a, b) =>
+        (a.shift + a.date + a.location + a.slot).localeCompare(b.shift + b.date + b.location + b.slot)
+      );
+      for (let i = 0; i < sorted1.length; i++) {
+        if (
+          sorted1[i].slot !== sorted2[i].slot ||
+          sorted1[i].shift !== sorted2[i].shift ||
+          sorted1[i].date !== sorted2[i].date ||
+          sorted1[i].location !== sorted2[i].location
+        ) {
+          console.log("Sai");
+          return;
+        }
+      }
+      console.log("Đúng");
+    };
   const handleEditDialogChange = (field, value) => {
-    console.log(editingRowData)
     if (editingRowData) {
       setEditingRowData({ ...editingRowData, [field]: value });
+      areRowsEqual(originalRows, rows)
     }
   };
 
@@ -293,9 +437,7 @@ export default function DatTable({ rows, setRows, area }) {
 
       setRows((oldRows) => {
         const idx = oldRows.findIndex((row) => row.id === editingRowData.id);
-        console.log(idx)
         if (idx !== -1) {
-          console.log('here')
           const updated = [...oldRows];
           updated[idx] = updatedRow;
           return updated;
@@ -306,7 +448,6 @@ export default function DatTable({ rows, setRows, area }) {
     }
   };
   const columns = [
-    { field: 'id', headerName: 'ID', width: 150, editable: false },
     { field: 'shift', headerName: 'Buổi', width: 150, editable: false },
     {
       field: 'date',
@@ -349,12 +490,14 @@ export default function DatTable({ rows, setRows, area }) {
           onRowModesModelChange={handleRowModesModelChange}
           onRowEditStop={handleRowEditStop}
           processRowUpdate={processRowUpdate}
-          checkboxSelection
           hideFooter={true}
+          key={rows.length}
           onRowSelectionModelChange={(newSelectionModel) => {
-            const newSelectedRows = new Set([...newSelectionModel.ids]);
-            setSelectionModel([...newSelectedRows]);
+            // const newSelectedRows = new Set([...newSelectionModel.ids]);`
+            // setSelectionModel([...newSelectedRows]);
+            setSelectionModel(newSelectionModel)
           }}
+          checkboxSelection
           selectionModel={selectionModel}
           slots={{
             toolbar: Toolbar,

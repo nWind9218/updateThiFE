@@ -11,7 +11,7 @@ import React, { useEffect, useState } from "react";
   import AccessTimeIcon from "@mui/icons-material/AccessTime";
   import Button from "@mui/material/Button";
   import DatTable from "./DatTable";
-import axios from "axios";
+  import axios from "axios";
 
 
   // const updateExamShiftData = [
@@ -28,8 +28,7 @@ import axios from "axios";
     const [reload, setReload] = useState(false)
     const [, setShift] = useState("");
     const [, setDate] = useState(null);
-    const [, setRows] = useState([]);
-    const [filteredRows, setFilteredRows] = useState([]);
+    const [rows, setRows] = useState([]);
     const initialShift = "";
     const initialDate = null;
     const initialAddress = "Hà Nội";
@@ -37,10 +36,10 @@ import axios from "axios";
       const fetchData = async () => {
         let data = null
         try {
-          console.log(address)
           if (address == "Hà Nội"){
             const response = await axios.get("http://localhost:5000/hanoi")
             data = response.data
+          
           }
           else if (address == "Đà Nẵng"){
             const response = await axios.get("http://localhost:5000/danang")
@@ -50,6 +49,7 @@ import axios from "axios";
             const response = await axios.get("http://localhost:5000/tphcm")
             data = response.data
           }
+          
           const distinctList = (() => {
             const map = new Map();
 
@@ -69,7 +69,6 @@ import axios from "axios";
           })();
           let id = 0
           const processedData = distinctList.map((item) => {
-
           return {
             id : id++,
             slot: item.slot, 
@@ -79,12 +78,11 @@ import axios from "axios";
                 : "Không có dữ liệu",
             location: typeof item?.dia_diem === 'string'
                 ? item.dia_diem.replace("Thi tại ", "")
-                : "Không có dữ liệu",
-            
+                : "Khác",
+            area: address
           };
         });
           setRows(processedData)
-          setFilteredRows(processedData)
         }
         catch(error){
           console.error("Lỗi khi lấy dữ liệu: ", error)
@@ -132,19 +130,19 @@ import axios from "axios";
           <Grid container spacing={2} alignItems="center" justifyContent="space-between" flexWrap="wrap">
             <Grid item xs={12} md={3} sx={{ display: "flex", alignItems: "center", mb: { xs: 1.5, md: 0 } }}>
               <Box
-    component="img"
-    src="/logo.jpg"
-    alt="Logo"
-    sx={{
-      width: 38,
-      height: 38,
-      mr: 1,
-      borderRadius: "8px",
-      objectFit: "cover",
-      boxShadow: 2,
-      background: "#fff"
-    }}
-  />
+                component="img"
+                src="/logo.jpg"
+                alt="Logo"
+                sx={{
+                  width: 38,
+                  height: 38,
+                  mr: 1,
+                  borderRadius: "8px",
+                  objectFit: "cover",
+                  boxShadow: 2,
+                  background: "#fff"
+              }}
+              />
               <Box>
                 <Typography variant="h5" fontWeight={700} color="primary">
                   Quản lý ca thi
@@ -205,7 +203,6 @@ import axios from "axios";
             </Grid>
           </Grid>
         </Paper>
-
         {/* Data Table Section */}
         <Box
           sx={{
@@ -217,7 +214,7 @@ import axios from "axios";
             minHeight: 500,
           }}
         >
-          <DatTable rows={filteredRows} setRows={setRows} area={address}/>
+          <DatTable rows={rows} setRows={setRows} area={address} reload ={reload} setReload = {setReload}/>
         </Box>
       </Box>
     );
