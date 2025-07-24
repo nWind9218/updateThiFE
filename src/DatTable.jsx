@@ -28,6 +28,7 @@ import InputLabel from '@mui/material/InputLabel';
 import Select from '@mui/material/Select';
 import MenuItem from '@mui/material/MenuItem';
 import axios from 'axios';
+import Menu from '@mui/material/Menu';
 function TableActions(props) {
   const {
     rows,
@@ -171,23 +172,23 @@ export default function DatTable({ rows, setRows, area, reload, setReload }) {
             data = response.data
           }
           
-          const distinctList = (() => {
-            const map = new Map();
+          // const distinctList = (() => {
+          //   const map = new Map();
 
-            for (const item of data) {
-              const key = `${item.buoi}|${item.dia_diem}|${item.slot}|${item.ngay_thi}`;
-              item.buoi = (typeof item?.buoi === 'string')? (item.buoi.includes("sáng") ? "Sáng"
-                  : item.buoi.includes("chiều") ? "Chiều"
-                  : "Không có dữ liệu")
-                : "Không có dữ liệu"
-              item.date = item?.ngay_thi
-                ? item.ngay_thi.trim()
-                : "Không có dữ liệu"
-              if (!map.has(key)) map.set(key, item);
-            }
-            return Array.from(map.values());
-          })();
-          const processedData = distinctList.map((item) => {
+          //   for (const item of data) {
+          //     const key = `${item.buoi}|${item.dia_diem}|${item.slot}|${item.ngay_thi}`;
+          //     item.buoi = (typeof item?.buoi === 'string')? (item.buoi.includes("sáng") ? "Sáng"
+          //         : item.buoi.includes("chiều") ? "Chiều"
+          //         : "Không có dữ liệu")
+          //       : "Không có dữ liệu"
+          //     item.date = item?.ngay_thi
+          //       ? item.ngay_thi.trim()
+          //       : "Không có dữ liệu"
+          //     if (!map.has(key)) map.set(key, item);
+          //   }
+          //   return Array.from(map.values());
+          // })();
+          const processedData = data.map((item) => {
             return {
               slot: item.slot, 
               shift: item.buoi,
@@ -236,6 +237,8 @@ export default function DatTable({ rows, setRows, area, reload, setReload }) {
     else {
       originalRows.forEach((originalRow) => {
         result.push({
+          ca_thi: originalRow.ca.includes('Không có dữ liệu')?'Không có dữ liệu': originalRow.ca,
+          gio_thi: originalRow.time.includes('Không có dữ liệu')?'Không có dữ liệu':originalRow.time,
           buoi: originalRow.shift.includes('Không có dữ liệu')? 'Không có dữ liệu': originalRow.shift,
           ngay_thi:originalRow.date,
           dia_diem:originalRow.location.includes("Khác")?"Khác": originalRow.location,
@@ -247,7 +250,15 @@ export default function DatTable({ rows, setRows, area, reload, setReload }) {
   }
   const handleConfirmSave = () => {
     // setNeedBackend(true)
-    const newRowsUpdate = FullyFormatDataFromTable(rows)
+    const newRowsUpdate = rows.map((originalRow) => ({
+          ca_thi: originalRow.ca.includes('Không có dữ liệu') ? 'Không có dữ liệu' : originalRow.ca,
+          gio_thi: originalRow.time.includes('Không có dữ liệu') ? 'Không có dữ liệu' : originalRow.time,
+          buoi: originalRow.shift.includes('Sáng') ? 'buổi sáng' : 'buổi chiều',
+          ngay_thi: originalRow.date,
+          dia_diem: originalRow.location.includes("Khác") ? "Khác" : originalRow.location,
+          slot: originalRow.slot.toString()
+        }));
+    
     console.log(newRowsUpdate)
     const dataSent = 
     {
@@ -264,12 +275,14 @@ export default function DatTable({ rows, setRows, area, reload, setReload }) {
     setOpenConfirmSaveDialog(false);
     setReload(!reload)
   };
-  // VALIDATE INFOMATION
+  // HANDLE VALIDATE INFOMATION
   const validateNewRowData = (data) => {
     const errors = {};
     if (!data.slot || data.slot.trim() === "") errors.ca = "Vui lòng nhập số lượng slot";
     if (!data.date) errors.date = "Vui lòng chọn ngày";
     if (!data.location || data.location.trim() === "") errors.location = "Vui lòng nhập địa điểm";
+    if (!data.ca || data.ca === "") errors.ca = "Vui lòng chọn ca thi"
+    if (!data.time || data.time === "") errors.ca = "Vui lòng chọn thời gian thi"
     return errors;
   };
   React.useEffect(() => {
@@ -284,6 +297,8 @@ export default function DatTable({ rows, setRows, area, reload, setReload }) {
     area: area,
     date: dayjs('DD/MM/YYYY'),
     location: '',
+    ca:'',
+    time:''
   });
 
   const handleRowEditStop = (params, event) => {
@@ -314,7 +329,9 @@ export default function DatTable({ rows, setRows, area, reload, setReload }) {
       date: dayjs('DD/MM/YYYY'),
       location: '',
       area : area,
-      slot: ''
+      slot: '',
+      ca: '',
+      time:''
     });
     setOpenAddDialog(true);
   };
@@ -322,6 +339,8 @@ export default function DatTable({ rows, setRows, area, reload, setReload }) {
   const handleCloseAddDialog = () => {
     setOpenAddDialog(false);
     setNewRowData({
+      ca: '',
+      time: '',
       shift: '',  
       date: dayjs('DD/MM/YYYY'),
       location: '',
@@ -448,14 +467,17 @@ export default function DatTable({ rows, setRows, area, reload, setReload }) {
     }
   };
   const columns = [
+
+    { field: 'ca', headerName: 'Ca', width: 150, editable: false },
     { field: 'shift', headerName: 'Buổi', width: 150, editable: false },
     {
       field: 'date',
-      headerName: 'Thời gian',
+      headerName: 'Ngày',
       type: 'date',
       width: 150,
       editable: false
     },
+    { field: 'time', headerName: 'Thời gian', width: 150, editable: false },
     { field: 'location', headerName: 'Địa điểm', width: 400, editable: false },
     { field: 'slot', headerName: 'Số lượng Slot', width: 200, editable: false },
     { field: 'area', headerName: 'Thành phố', width: 300, editable: false },
@@ -577,11 +599,26 @@ export default function DatTable({ rows, setRows, area, reload, setReload }) {
         </Dialog>
 
         {/* Add Dialog */}
-        <Dialog open={openAddDialog} onClose={handleCloseAddDialog}>
-          <DialogTitle>Thêm ca thi mới</DialogTitle>
-          <DialogContent>
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: 1 }}>
-              <FormControl fullWidth error={!!addDialogErrors.shift}>
+          <Dialog open={openAddDialog} onClose={handleCloseAddDialog}>
+            <DialogTitle>Thêm ca thi mới</DialogTitle>
+            <DialogContent>
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: 1 }}>
+              <FormControl fullWidth>
+                <InputLabel>Ca</InputLabel>
+                <Select
+                  label="Ca"
+                  value={newRowData.ca}
+                  onChange={(e) => handleAddDialogChange('ca', e.target.value)}
+                >
+                  <MenuItem value="Ca 1">Ca 1</MenuItem>
+                  <MenuItem value="Ca 2">Ca 2</MenuItem>
+                  <MenuItem value="Ca 3">Ca 3</MenuItem>
+
+                </Select>
+                {/* {addDialogErrors.ca && <Typography variant="caption" color="error">{addDialogErrors.ca}</Typography>} */}
+                
+                </FormControl>
+                <FormControl fullWidth>
                 <InputLabel>Buổi</InputLabel>
                 <Select
                   label="Buổi"
@@ -591,48 +628,66 @@ export default function DatTable({ rows, setRows, area, reload, setReload }) {
                   <MenuItem value="Sáng">Sáng</MenuItem>
                   <MenuItem value="Chiều">Chiều</MenuItem>
                 </Select>
-                {addDialogErrors.shift && <Typography variant="caption" color="error">{addDialogErrors.shift}</Typography>}
-              </FormControl>
-              <DatePicker
-                label="Ngày"
-                value={newRowData.date}
-                onChange={(newValue) => handleAddDialogChange('date', newValue)}
-                format="DD/MM/YYYY"
-                slotProps={{
-                  textField: {
+                {/* {addDialogErrors.shift && <Typography variant="caption" color="error">{addDialogErrors.shift}</Typography>} */}
+                
+                </FormControl>
+                <DatePicker
+                  label="Ngày"
+                  value={newRowData.date}
+                  onChange={(newValue) => handleAddDialogChange('date', newValue)}
+                  format="DD/MM/YYYY"
+                  slotProps={{
+                    textField: {
                     fullWidth: true,
                     error: !!addDialogErrors.date,
                     helperText: addDialogErrors.date,
-                  },
-                }}
-              />
-              <TextField
-                label="Địa điểm"
-                value={newRowData.location}
-                onChange={(e) => handleAddDialogChange('location', e.target.value)}
-                fullWidth
-                error={!!addDialogErrors.location}
-                helperText={addDialogErrors.location}
-              />
-              
-              <TextField
-                label="Slot"
-                value={newRowData.slot}
-                onChange={(e) => handleAddDialogChange('slot', e.target.value)}
-                fullWidth
-                error={!!addDialogErrors.slot}
-                helperText={addDialogErrors.slot}
-              />
-            </Box>
-          </DialogContent>
-          <DialogActions>
-            <Button onClick={handleCloseAddDialog}>Hủy</Button>
-            <Button onClick={handleSaveAddDialog} color="primary">
-              Thêm
-            </Button>
-          </DialogActions>
-        </Dialog>
-        {/*SaveDialog*/}
+                    },
+                  }}
+                />
+                <FormControl fullWidth>
+                <InputLabel>Thời gian</InputLabel>
+                <Select
+                  label="Thời gian"
+                  value={newRowData.time}
+                  disabled={!!newRowData.shift}
+                  onChange={(e) => handleAddDialogChange('time', e.target.value)}
+                >
+                    {newRowData.shift === "Sáng"
+                      ? GIO_THI_SANG.map((gio, idx) => (
+                    <MenuItem key={idx} value={gio}>{gio}</MenuItem>
+                        ))
+                      : GIO_THI_CHIEU.map((gio, idx) => (
+                    <MenuItem key={idx} value={gio}>{gio}</MenuItem>
+                        ))
+                    }
+                  </Select>
+                {/* {addDialogErrors.time && <Typography variant="caption" color="error">{addDialogErrors.time}</Typography>} */}
+                </FormControl>
+                <TextField
+                  label="Địa điểm"
+                  value={newRowData.location}
+                  onChange={(e) => handleAddDialogChange('location', e.target.value)}
+                  fullWidth
+                />
+                
+                <TextField
+                  label="Slot"
+                  value={newRowData.slot}
+                  onChange={(e) => handleAddDialogChange('slot', e.target.value)}
+                  fullWidth
+                  error={!!addDialogErrors.slot}
+                  helperText={addDialogErrors.slot}
+                />
+              </Box>
+            </DialogContent>
+            <DialogActions>
+              <Button onClick={handleCloseAddDialog}>Hủy</Button>
+              <Button onClick={handleSaveAddDialog} color="primary">
+                Thêm
+              </Button>
+            </DialogActions>
+          </Dialog>
+          {/*SaveDialog*/}
         <Dialog open={openConfirmSaveDialog} onClose={handleCloseConfirmSave}>
         <DialogTitle>Xác nhận lưu</DialogTitle>
         <DialogContent>

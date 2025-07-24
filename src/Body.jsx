@@ -49,36 +49,43 @@ import React, { useEffect, useState } from "react";
             const response = await axios.get("http://localhost:5000/tphcm")
             data = response.data
           }
-          
-          const distinctList = (() => {
-            const map = new Map();
+          // Sửa distinct
+          // const distinctList = (() => {
+          //   const map = new Map();
 
-            for (const item of data) {
-              const key = `${item.buoi}|${item.dia_diem}|${item.slot}|${item.ngay_thi}`;
-              item.buoi = (typeof item?.buoi === 'string')? (item.buoi.includes("sáng") ? "Sáng"
-                  : item.buoi.includes("chiều") ? "Chiều"
-                  : "Không có dữ liệu")
-                : "Không có dữ liệu"
-              item.date = item?.ngay_thi
-                ? item.ngay_thi.trim()
-                : "Không có dữ liệu"
-              if (!map.has(key)) map.set(key, item);
-            }
+          //   for (const item of data) {
+          //     const key = `${item.buoi}|${item.dia_diem}|${item.slot}|${item.ngay_thi}`;
+          //     item.buoi = (typeof item?.buoi === 'string')? (item.buoi.includes("sáng") ? "Sáng"
+          //         : item.buoi.includes("chiều") ? "Chiều"
+          //         : "Không có dữ liệu")
+          //       : "Không có dữ liệu"
+          //     item.date = item?.ngay_thi
+          //       ? item.ngay_thi.trim()
+          //       : "Không có dữ liệu"
+          //     if (!map.has(key)) map.set(key, item);
+          //   }
             
-            return Array.from(map.values());
-          })();
+          //   return Array.from(map.values());
+          // })();
           let id = 0
-          const processedData = distinctList.map((item) => {
+          const processedData = data.map((item) => {
           return {
             id : id++,
+            ca: (typeof item?.buoi === 'string')? item.ca_thi: "Không có dữ liệu",
             slot: item.slot, 
-            shift: item.buoi,
+            shift: (typeof item?.buoi === 'string')? (item.buoi.includes("sáng") ? "Sáng"
+                  : item.buoi.includes("chiều") ? "Chiều"
+                  : "Không có dữ liệu")
+                : "Không có dữ liệu",
             date: item?.ngay_thi
                 ? item.ngay_thi.trim()
                 : "Không có dữ liệu",
             location: typeof item?.dia_diem === 'string'
                 ? item.dia_diem.replace("Thi tại ", "")
                 : "Khác",
+            time: item?.ngay_thi
+                ? item.ngay_thi.trim()
+                : "Không có dữ liệu",
             area: address
           };
         });
