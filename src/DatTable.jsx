@@ -6,10 +6,7 @@ import {
   QuickFilter,
 } from '@mui/x-data-grid';
 import Button from '@mui/material/Button';
-import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/DeleteOutlined';
-import SaveIcon from '@mui/icons-material/Check';
-import CancelIcon from '@mui/icons-material/Close';
 import Typography from '@mui/material/Typography';
 import Toolbar from '@mui/material/Toolbar';
 import AddIcon from '@mui/icons-material/Add';
@@ -28,7 +25,6 @@ import InputLabel from '@mui/material/InputLabel';
 import Select from '@mui/material/Select';
 import MenuItem from '@mui/material/MenuItem';
 import axios from 'axios';
-import Menu from '@mui/material/Menu';
 function TableActions(props) {
   const {
     rows,
@@ -36,47 +32,12 @@ function TableActions(props) {
     rowModesModel,
     setRowModesModel,
     selectionModel,
-    hasChanges,
-    handleOpenConfirmSave,
     onAddClick,
     onOpenDeleteConfirm,
-    onOpenEditDialog,
   } = props;
-
-  const selectedRowId = selectionModel.length === 1 ? selectionModel[0] : null;
-  const isInEditMode = selectedRowId ? rowModesModel[selectedRowId]?.mode === GridRowModes.Edit : false;
-  
-  const handleEditClick = () => {
-    if (selectedRowId) {
-      const rowToEdit = rows.find((row) => row.id === selectedRowId);
-      if (rowToEdit) {
-        onOpenEditDialog(rowToEdit);
-      }
-    }
-  };
-  const handleSaveClick = () => {
-    if (selectedRowId) {
-      setRowModesModel({ ...rowModesModel, [selectedRowId]: { mode: GridRowModes.View } });
-    }
-  };
-
 
   const handleDeleteClick = () => {
     onOpenDeleteConfirm();
-  };
-
-  const handleCancelClick = () => {
-    if (selectedRowId) {
-      setRowModesModel({
-        ...rowModesModel,
-        [selectedRowId]: { mode: GridRowModes.View, ignoreModifications: true },
-      });
-
-      const editedRow = rows.find((row) => row.id === selectedRowId);
-      if (editedRow && editedRow.isNew) {
-        setRows(rows.filter((row) => row.id !== selectedRowId));
-      }
-    }
   };
 
   return (
@@ -94,47 +55,17 @@ function TableActions(props) {
         Dữ liệu quản lý ca thi
       </Typography>
       <Box>
-        {!isInEditMode ? (
-          <>
-            <Button
-              startIcon={<SaveIcon/>}
-              color="success"
-              onClick={handleOpenConfirmSave}
-              disabled={!hasChanges}
-            >
-              Lưu thay đổi
-            </Button>
-            <Button startIcon={<AddIcon />} onClick={onAddClick} sx={{ mr: 1 }}>
-              Thêm ca thi
-            </Button>
-            <Button
-              startIcon={<EditIcon />}
-              onClick={handleEditClick}
-              // disabled={selectionModel.length!==1}
-              disabled={true}
-              sx={{ mr: 1 }}
-            >
-              Cập nhật
-            </Button>
-            <Button
-              startIcon={<DeleteIcon />}
-              onClick={handleDeleteClick}
-              disabled={selectionModel.length === 0}
-              color="error"
-            >
-              Xóa
-            </Button>
-          </>
-        ) : (
-          <>
-            <Button startIcon={<SaveIcon />} onClick={handleSaveClick} sx={{ mr: 1 }}>
-              Lưu
-            </Button>
-            <Button startIcon={<CancelIcon />} onClick={handleCancelClick} color="warning">
-              Hủy
-            </Button>
-          </>
-        )}
+        <Button startIcon={<AddIcon />} onClick={onAddClick} sx={{ mr: 1 }}>
+          Thêm ca thi
+        </Button>
+        <Button
+          startIcon={<DeleteIcon />}
+          onClick={handleDeleteClick}
+          color="error"
+          disabled={selectionModel.length === 0}
+        >
+          Xóa
+        </Button>
       </Box>
     </Toolbar>
   );
@@ -144,31 +75,24 @@ export default function DatTable({ rows, setRows, area, reload, setReload }) {
   const [rowModesModel, setRowModesModel] = React.useState({});
   const [selectionModel, setSelectionModel] = React.useState([]);
   const [openDeleteConfirm, setOpenDeleteConfirm] = React.useState(false);
-  const [openEditDialog, setOpenEditDialog] = React.useState(false);
-  const [editingRowData, setEditingRowData] = React.useState(null);
   const [needBackend, setNeedBackend] = React.useState(false)
-  const [originalRows, setOriginalRows] = React.useState(rows);
-  const [hasChanges, setHasChanges] = React.useState(false);
-  const [openConfirmSaveDialog, setOpenConfirmSaveDialog] = React.useState(false);
   const [addDialogErrors, setAddDialogErrors] = React.useState({});
-  const handleOpenConfirmSave = () => setOpenConfirmSaveDialog(true);
-  const handleCloseConfirmSave = () => setOpenConfirmSaveDialog(false);
   React.useEffect(() => {
       if (!needBackend) return;
       const fetchData = async () => {
         let data = null
         try {
           if (area == "Hà Nội"){
-            const response = await axios.get("http://localhost:5000/hanoi")
+            const response = await axios.get("https://server-tinz.aipencil.name.vn/hanoi")
             data = response.data
           
           }
           else if (area == "Đà Nẵng"){
-            const response = await axios.get("http://localhost:5000/danang")
+            const response = await axios.get("https://server-tinz.aipencil.name.vn/danang")
             data = response.data
           }
           else if (area == "TP. Hồ Chí Minh"){
-            const response = await axios.get("http://localhost:5000/tphcm")
+            const response = await axios.get("https://server-tinz.aipencil.name.vn/tphcm")
             data = response.data
           }
           
@@ -203,7 +127,7 @@ export default function DatTable({ rows, setRows, area, reload, setReload }) {
               time: item.gio_thi == null?'': item.gio_thi
             };
           });
-          setOriginalRows(processedData)
+          // setOriginalRows(processedData) - Removed as not needed
         }
         catch(error){
           console.error("Lỗi khi lấy dữ liệu: ", error)
@@ -214,81 +138,25 @@ export default function DatTable({ rows, setRows, area, reload, setReload }) {
       }
       fetchData()
     }, [needBackend, area]);
-  // Handle Sending Request To Server for Update Information
-  const CA_THI = ['Ca 1', 'Ca 2','Ca 3']
-  const GIO_THI_SANG = ['07h45 - 09h15','09h30 - 11h00', '11h00 - 12h30']
-  const GIO_THI_CHIEU = ['14h00 - 15h30', '15h30 - 17h00','17h00 - 18h30']
-  const FullyFormatDataFromTable = (originalRows) =>{
-    if (!Array.isArray(originalRows)) return [];
-    const result = [];
-    if (area == 'Hà Nội' || area == 'TP. Hồ Chí Minh'){
-    originalRows.forEach((originalRow) => {
-      for (let i = 0; i < 3; i++) {
-        result.push({
-          ca_thi: CA_THI[i],
-          buoi: originalRow.shift.includes('Sáng')? 'buổi sáng': 'buổi chiều',
-          ngay_thi:originalRow.date,
-          gio_thi: originalRow.shift.includes('Sáng')?GIO_THI_SANG[i]:GIO_THI_CHIEU[i],
-          dia_diem:originalRow.location.includes("Khác")?"Khác": originalRow.location,
-          slot: originalRow.slot.toString()
-        });
-      }
-    });}
-    else {
-      originalRows.forEach((originalRow) => {
-        result.push({
-          ca_thi: originalRow.ca.includes('Không có dữ liệu')?'Không có dữ liệu': originalRow.ca,
-          gio_thi: originalRow.time.includes('Không có dữ liệu')?'Không có dữ liệu':originalRow.time,
-          buoi: originalRow.shift.includes('Không có dữ liệu')? 'Không có dữ liệu': originalRow.shift,
-          ngay_thi:originalRow.date,
-          dia_diem:originalRow.location.includes("Khác")?"Khác": originalRow.location,
-          slot: originalRow.slot.toString()
-        });
-      })
-    }
-    return result;
-  }
-  const handleConfirmSave = () => {
-    // setNeedBackend(true)
-    const newRowsUpdate = rows.map((originalRow) => ({
-          ca_thi: originalRow.ca.includes('Không có dữ liệu') ? 'Không có dữ liệu' : originalRow.ca,
-          gio_thi: originalRow.time.includes('Không có dữ liệu') ? 'Không có dữ liệu' : originalRow.time,
-          buoi: originalRow.shift.includes('Sáng') ? 'buổi sáng' : 'buổi chiều',
-          ngay_thi: originalRow.date,
-          dia_diem: originalRow.location.includes("Khác") ? "Khác" : originalRow.location,
-          slot: originalRow.slot.toString()
-        }));
-    
-    console.log(newRowsUpdate)
-    const dataSent = 
-    {
-      data: newRowsUpdate,
-      area: area
-    }
-    axios.post("http://localhost:5000/updateTinZ", dataSent)
-      .then((response) => {
-        console.log("Dữ liệu đã được cập nhật thành công:", response.data.inserted);
-      })
-      .catch((error) => {
-        console.error("Lỗi khi gửi dữ liệu:", error);
-      });
-    setOpenConfirmSaveDialog(false);
-    setReload(!reload)
-  };
   // HANDLE VALIDATE INFOMATION
   const validateNewRowData = (data) => {
     const errors = {};
-    if (!data.slot || data.slot.trim() === "") errors.ca = "Vui lòng nhập số lượng slot";
-    if (!data.date) errors.date = "Vui lòng chọn ngày";
+    if (!data.slot || data.slot.trim() === "") errors.slot = "Vui lòng nhập số lượng slot";
+    if (!data.date) {
+      errors.date = "Vui lòng chọn ngày";
+    } else {
+      // Kiểm tra ngày không được chọn quá khứ
+      const selectedDate = dayjs(data.date);
+      const today = dayjs().startOf('day');
+      if (selectedDate.isBefore(today)) {
+        errors.date = "Ngày thi không được chọn trong quá khứ";
+      }
+    }
     if (!data.location || data.location.trim() === "") errors.location = "Vui lòng nhập địa điểm";
-    if (!data.ca || data.ca === "") errors.ca = "Vui lòng chọn ca thi"
-    if (!data.time || data.time === "") errors.ca = "Vui lòng chọn thời gian thi"
+    if (!data.ca || data.ca === "") errors.ca = "Vui lòng chọn ca thi";
+    if (!data.time || data.time.trim() === "") errors.time = "Vui lòng nhập thời gian thi";
     return errors;
   };
-  React.useEffect(() => {
-    const isChanged = JSON.stringify(rows) !== JSON.stringify(originalRows);
-    setHasChanges(isChanged);
-  }, [rows, originalRows]);
   // ADD DIALOG
   const [openAddDialog, setOpenAddDialog] = React.useState(false);
   const [newRowData, setNewRowData] = React.useState({
@@ -353,25 +221,52 @@ export default function DatTable({ rows, setRows, area, reload, setReload }) {
   const handleAddDialogChange = (field, value) => {
     setNewRowData({ ...newRowData, [field]: value });
   };
-  const handleSaveAddDialog = () => {
+  const handleSaveAddDialog = async () => {
     const errors = validateNewRowData(newRowData);
     setAddDialogErrors(errors);
     if (Object.keys(errors).length > 0) {
       console.error(errors)
       return;
     }
-    const id = rows.length + 1;
-    const rowToAdd = {
-      ...newRowData,
-      id,
-      // isNew: false,
-      date: dayjs(newRowData.date).format('DD/MM/YYYY'),
-      area: newRowData.area?? area
-    };
-    const newRows = [rowToAdd, ...rows]
-    setRows(newRows);
-    handleCloseAddDialog();
-    setAddDialogErrors({}); // clear lỗi sau khi thêm thành công
+
+    try {
+      // Chuẩn bị dữ liệu để gửi lên server
+      const dataToSend = {
+        ca_thi: newRowData.ca,
+        buoi: newRowData.shift.includes('Sáng') ? 'buổi sáng' : 'buổi chiều',
+        ngay_thi: dayjs(newRowData.date).format('DD/MM/YYYY'),
+        gio_thi: newRowData.time,
+        dia_diem: newRowData.location,
+        slot: newRowData.slot.toString(),
+        area: area
+      };
+
+      // Gọi API thêm ca thi
+      const response = await axios.post("https://server-tinz.aipencil.name.vn/addExamSession", dataToSend);
+      
+      if (response.status === 201) {
+        console.log("Thêm ca thi thành công:", response.data);
+        
+        // Cập nhật giao diện
+        const id = rows.length + 1;
+        const rowToAdd = {
+          ...newRowData,
+          id,
+          date: dayjs(newRowData.date).format('DD/MM/YYYY'),
+          area: area
+        };
+        const newRows = [rowToAdd, ...rows];
+        setRows(newRows);
+        handleCloseAddDialog();
+        setAddDialogErrors({});
+        
+        // Reload dữ liệu để đồng bộ
+        setReload(!reload);
+      }
+    } catch (error) {
+      console.error("Lỗi khi thêm ca thi:", error);
+      setAddDialogErrors({ general: "Có lỗi xảy ra khi thêm ca thi. Vui lòng thử lại." });
+    }
   };
 
 
@@ -383,88 +278,51 @@ export default function DatTable({ rows, setRows, area, reload, setReload }) {
     setOpenDeleteConfirm(false);
   };
 
-  const handleConfirmDelete = () => {
-    // Lọc row không bị xóa
-    const filteredRows = rows.filter((row) => !selectionModel.ids.has(row.id));
-    // Gán lại id tăng dần từ 1
-    const newRows = filteredRows.map((row, idx) => ({
-      ...row,
-      id: idx + 1,
-    }));
-    setRows(newRows);
-    setTimeout(() => {
-      setSelectionModel([]);
-    }, 0);
-    handleCloseDeleteConfirm();
-  };
-  const handleOpenEditDialog = (row) => {
-    setEditingRowData(row);
-    setOpenEditDialog(true);
-  };
+  const handleConfirmDelete = async () => {
+    try {
+      // Lấy danh sách các ca thi được chọn để xóa
+      const selectedRows = rows.filter((row) => selectionModel.includes(row.id));
+      
+      // Chuẩn bị dữ liệu để gửi lên server
+      const examSessionsToDelete = selectedRows.map((row) => ({
+        ca_thi: row.ca,
+        buoi: row.shift.includes('Sáng') ? 'buổi sáng' : 'buổi chiều',
+        ngay_thi: row.date,
+        dia_diem: row.location
+      }));
 
-  const handleCloseEditDialog = () => {
-    setOpenEditDialog(false);
-    setEditingRowData(null);
-  };
-
-  const areRowsEqual = (rows1, rows2) => { // Used for edit
-      if (rows1.length !== rows2.length) return false;
-      const normalize = (row) => ({
-        slot: String(row.slot).trim(),
-        shift: String(row.shift).trim(),
-        date: dayjs(row.date).format('DD/MM/YYYY'),
-        location: String(row.location).trim(),
-      });
-      const sorted1 = [...rows1].map(normalize).sort((a, b) =>
-        (a.shift + a.date + a.location + a.slot).localeCompare(b.shift + b.date + b.location + b.slot)
-      );
-      const sorted2 = [...rows2].map(normalize).sort((a, b) =>
-        (a.shift + a.date + a.location + a.slot).localeCompare(b.shift + b.date + b.location + b.slot)
-      );
-      for (let i = 0; i < sorted1.length; i++) {
-        if (
-          sorted1[i].slot !== sorted2[i].slot ||
-          sorted1[i].shift !== sorted2[i].shift ||
-          sorted1[i].date !== sorted2[i].date ||
-          sorted1[i].location !== sorted2[i].location
-        ) {
-          console.log("Sai");
-          return;
+      // Gọi API xóa ca thi
+      const response = await axios.delete("https://server-tinz.aipencil.name.vn/deleteExamSession", {
+        data: {
+          examSessions: examSessionsToDelete,
+          area: area
         }
+      });
+
+      if (response.status === 200) {
+        console.log("Xóa ca thi thành công:", response.data);
+        
+        // Cập nhật giao diện
+        const filteredRows = rows.filter((row) => !selectionModel.includes(row.id));
+        const newRows = filteredRows.map((row, idx) => ({
+          ...row,
+          id: idx + 1,
+        }));
+        setRows(newRows);
+        
+        setTimeout(() => {
+          setSelectionModel([]);
+        }, 0);
+        
+        // Reload dữ liệu để đồng bộ
+        setReload(!reload);
       }
-      console.log("Đúng");
-    };
-  const handleEditDialogChange = (field, value) => {
-    if (editingRowData) {
-      setEditingRowData({ ...editingRowData, [field]: value });
-      areRowsEqual(originalRows, rows)
+    } catch (error) {
+      console.error("Lỗi khi xóa ca thi:", error);
+      // Có thể thêm thông báo lỗi cho người dùng ở đây
     }
-  };
-
-  const handleSaveEditDialog = () => {
-    // if (editingRowData) {
-    //   processRowUpdate(editingRowData);
-    //   handleCloseEditDialog();
-    // }
-    if (editingRowData) {
-      const updatedId = `${editingRowData.shift}-${editingRowData.date}-${editingRowData.location}`;
-      const updatedRow = {
-        ...editingRowData,
-        id: updatedId,
-        date: dayjs(editingRowData.date).toDate(),
-      };
-
-      setRows((oldRows) => {
-        const idx = oldRows.findIndex((row) => row.id === editingRowData.id);
-        if (idx !== -1) {
-          const updated = [...oldRows];
-          updated[idx] = updatedRow;
-          return updated;
-        }
-        return oldRows;
-      });
-      handleCloseEditDialog();
-    }
+    
+    handleCloseDeleteConfirm();
   };
   const columns = [
 
@@ -495,9 +353,6 @@ export default function DatTable({ rows, setRows, area, reload, setReload }) {
           setSelectionModel={setSelectionModel}
           onAddClick={handleAddClick}
           onOpenDeleteConfirm={handleOpenDeleteConfirm}
-          onOpenEditDialog={handleOpenEditDialog}
-          hasChanges={hasChanges}
-          handleOpenConfirmSave={handleOpenConfirmSave}
         />
         <DataGrid
           rows={rows.map(row => ({
@@ -545,58 +400,6 @@ export default function DatTable({ rows, setRows, area, reload, setReload }) {
           </DialogActions>
         </Dialog>
 
-        {/* Edit Dialog */}
-        <Dialog open={openEditDialog} onClose={handleCloseEditDialog}>
-          <DialogTitle>Cập nhật ca thi</DialogTitle>
-          <DialogContent>
-            {editingRowData && (
-              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: 1 }}>
-                <TextField
-                  label="Buổi"
-                  value={editingRowData.shift}
-                  onChange={(e) => handleEditDialogChange('shift', e.target.value)}
-                  fullWidth
-                />
-                <DatePicker
-                  label="Thời gian"
-                  value={
-                    editingRowData?.date
-                      ? (typeof editingRowData.date === 'string'
-                          ? dayjs(editingRowData.date, 'DD/MM/YYYY')
-                          : dayjs(editingRowData.date))
-                      : null
-                  }
-                  onChange={(newValue) =>
-                    handleEditDialogChange('date', newValue)
-                  }
-                  format="DD/MM/YYYY"
-                  slotProps={{ textField: { fullWidth: true } }}
-                />
-
-                <TextField
-                  label="Địa điểm"
-                  value={editingRowData.location}
-                  onChange={(e) => handleEditDialogChange('location', e.target.value)}
-                  fullWidth
-                />
-                
-                <TextField
-                  label="Số lượng slot"
-                  value={editingRowData.slot}
-                  onChange={(e) => handleEditDialogChange('slot', e.target.value)}
-                  fullWidth
-                />
-                
-              </Box>
-            )}
-          </DialogContent>
-          <DialogActions>
-            <Button onClick={handleCloseEditDialog}>Hủy</Button>
-            <Button onClick={handleSaveEditDialog} color="primary">
-              Lưu
-            </Button>
-          </DialogActions>
-        </Dialog>
 
         {/* Add Dialog */}
           <Dialog open={openAddDialog} onClose={handleCloseAddDialog}>
@@ -636,6 +439,7 @@ export default function DatTable({ rows, setRows, area, reload, setReload }) {
                   value={newRowData.date}
                   onChange={(newValue) => handleAddDialogChange('date', newValue)}
                   format="DD/MM/YYYY"
+                  minDate={dayjs()}
                   slotProps={{
                     textField: {
                     fullWidth: true,
@@ -644,25 +448,15 @@ export default function DatTable({ rows, setRows, area, reload, setReload }) {
                     },
                   }}
                 />
-                <FormControl fullWidth>
-                <InputLabel>Thời gian</InputLabel>
-                <Select
+                <TextField
                   label="Thời gian"
                   value={newRowData.time}
-                  disabled={!!newRowData.shift}
                   onChange={(e) => handleAddDialogChange('time', e.target.value)}
-                >
-                    {newRowData.shift === "Sáng"
-                      ? GIO_THI_SANG.map((gio, idx) => (
-                    <MenuItem key={idx} value={gio}>{gio}</MenuItem>
-                        ))
-                      : GIO_THI_CHIEU.map((gio, idx) => (
-                    <MenuItem key={idx} value={gio}>{gio}</MenuItem>
-                        ))
-                    }
-                  </Select>
-                {/* {addDialogErrors.time && <Typography variant="caption" color="error">{addDialogErrors.time}</Typography>} */}
-                </FormControl>
+                  fullWidth
+                  error={!!addDialogErrors.time}
+                  helperText={addDialogErrors.time}
+                  placeholder="Ví dụ: 08:00 - 09:30"
+                />
                 <TextField
                   label="Địa điểm"
                   value={newRowData.location}
@@ -687,23 +481,6 @@ export default function DatTable({ rows, setRows, area, reload, setReload }) {
               </Button>
             </DialogActions>
           </Dialog>
-          {/*SaveDialog*/}
-        <Dialog open={openConfirmSaveDialog} onClose={handleCloseConfirmSave}>
-        <DialogTitle>Xác nhận lưu</DialogTitle>
-        <DialogContent>
-          <DialogContentText>
-            Bạn có chắc muốn lưu các thay đổi không? Hành động này sẽ cập nhật dữ liệu hiện tại.
-          </DialogContentText>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={handleCloseConfirmSave} color="secondary">
-            Hủy
-          </Button>
-          <Button onClick={handleConfirmSave} color="primary" variant="contained">
-            Lưu
-          </Button>
-        </DialogActions>
-      </Dialog>
       </Box>
     </LocalizationProvider>
   );

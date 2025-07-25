@@ -37,16 +37,16 @@ import React, { useEffect, useState } from "react";
         let data = null
         try {
           if (address == "Hà Nội"){
-            const response = await axios.get("http://localhost:5000/hanoi")
+            const response = await axios.get("https://server-tinz.aipencil.name.vn/hanoi")
             data = response.data
           
           }
           else if (address == "Đà Nẵng"){
-            const response = await axios.get("http://localhost:5000/danang")
+            const response = await axios.get("https://server-tinz.aipencil.name.vn/danang")
             data = response.data
           }
           else if (address == "TP. Hồ Chí Minh"){
-            const response = await axios.get("http://localhost:5000/tphcm")
+            const response = await axios.get("https://server-tinz.aipencil.name.vn/tphcm")
             data = response.data
           }
           // Sửa distinct
@@ -71,7 +71,7 @@ import React, { useEffect, useState } from "react";
           const processedData = data.map((item) => {
           return {
             id : id++,
-            ca: (typeof item?.buoi === 'string')? item.ca_thi: "Không có dữ liệu",
+            ca: item.ca_thi || "Không có dữ liệu",
             slot: item.slot, 
             shift: (typeof item?.buoi === 'string')? (item.buoi.includes("sáng") ? "Sáng"
                   : item.buoi.includes("chiều") ? "Chiều"
@@ -83,9 +83,7 @@ import React, { useEffect, useState } from "react";
             location: typeof item?.dia_diem === 'string'
                 ? item.dia_diem.replace("Thi tại ", "")
                 : "Khác",
-            time: item?.ngay_thi
-                ? item.ngay_thi.trim()
-                : "Không có dữ liệu",
+            time: item?.gio_thi || "Không có dữ liệu",
             area: address
           };
         });

@@ -5,6 +5,10 @@ import react from '@vitejs/plugin-react-swc'
 export default defineConfig({
   plugins: [react()],
   server: {
-    port: 5174
+    host: true, // Allows Vite to be accessible from the network
+    allowedHosts: [
+      'update-tinz.aipencil.name.vn'
+    ],
+    port: 5174,
   }
 })
