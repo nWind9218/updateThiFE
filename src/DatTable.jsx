@@ -21,6 +21,28 @@ export default function DatTable({ rows, setRows, area }) {
   });
   const [addDialogErrors, setAddDialogErrors] = useState({});
 
+  // Helper function để lấy số lượng items được chọn
+  const getSelectedCount = () => {
+    console.log('getSelectedCount called with:', selectionModel);
+    
+    if (Array.isArray(selectionModel)) {
+      console.log('selectionModel is array, length:', selectionModel.length);
+      return selectionModel.length;
+    }
+    if (selectionModel && typeof selectionModel === 'object') {
+      if (selectionModel.ids && typeof selectionModel.ids === 'object') {
+        const idsCount = Object.keys(selectionModel.ids).length;
+        console.log('selectionModel has ids property, count:', idsCount);
+        return Object.keys(selectionModel.ids).length;
+      }
+      const objectKeys = Object.keys(selectionModel);
+      console.log('selectionModel is object, keys:', objectKeys);
+      return objectKeys.length;
+    }
+    console.log('selectionModel is neither array nor object');
+    return 0;
+  };
+
   // --- LOGIC THÊM MỚI ---
   const handleOpenAddDialog = () => {
     setNewRowData({ ca: '', shift: '', date: null, time: '', location: '', slot: '' });
@@ -68,45 +90,91 @@ export default function DatTable({ rows, setRows, area }) {
       console.error("Lỗi khi thêm ca thi:", error);
     }
   };
-
-  const handleOpenDeleteConfirm = () => setOpenDeleteConfirm(true);
-  const handleCloseDeleteConfirm = () => setOpenDeleteConfirm(false);
-
-  const handleConfirmDelete = async () => {
-    if (!selectionModel || selectionModel.length === 0) {
-      alert("Vui lòng chọn ít nhất một ca thi để xóa.");
-      return;
-    }
-
-    try {
-      // Chỉ gửi danh sách ID và area - đơn giản và hiệu quả hơn
-      const payload = { 
-        ids: selectionModel, // Gửi trực tiếp danh sách ID đã chọn
-        area: area 
-      };
+  // --- LOGIC XÓA ---
+    const handleOpenDeleteConfirm = () => {
+      console.log('Opening delete confirm, selected count:', getSelectedCount());
+      setOpenDeleteConfirm(true);
+    };
+    
+    const handleCloseDeleteConfirm = () => setOpenDeleteConfirm(false);
+    
+    const handleConfirmDelete = async () => {
+      console.log('=== DELETE PROCESS START ===');
+      console.log('selectionModel:', selectionModel);
+      console.log('selectionModel type:', typeof selectionModel);
+      console.log('selectionModel is array:', Array.isArray(selectionModel));
       
-      console.log('Payload gửi đi:', payload); // Debug log
+      // Cải tiến logic xử lý selectedIds
+      let selectedIds = [];
       
-      const response = await axios.delete("http://localhost:5000/deleteExamSession", { 
-        data: payload 
-      });
-
-      if (response.status === 200) {
-        // Cập nhật UI bằng cách loại bỏ các hàng đã xóa
-        setRows((prevRows) => prevRows.filter((row) => !selectionModel.includes(row.id)));
-        setSelectionModel([]);
-        
-        // Hiển thị thông báo thành công
-        alert(`${response.data.message}`);
+      if (Array.isArray(selectionModel)) {
+        selectedIds = [...selectionModel]; // Clone array
+        console.log('Case 1 - Array:', selectedIds);
+      } else if (selectionModel && typeof selectionModel === 'object') {
+        if (selectionModel.ids && typeof selectionModel.ids === 'object') {
+          selectedIds = Object.keys(selectionModel.ids);
+          console.log('Case 2 - Object with ids:', selectedIds);
+        } else {
+          // Trường hợp object khác
+          selectedIds = Object.keys(selectionModel);
+          console.log('Case 3 - Plain object:', selectedIds);
+        }
       }
-    } catch (error) {
-      console.error('Lỗi khi xóa:', error);
-      const errorMessage = error.response?.data?.error || error.message;
-      alert(`Lỗi khi xóa: ${errorMessage}`);
-    } finally {
-      handleCloseDeleteConfirm();
-    }
-  };
+      
+      console.log('selectedIds after processing:', selectedIds);
+      
+      if (!selectedIds || selectedIds.length === 0) {
+        alert("Vui lòng chọn ít nhất một ca thi để xóa.");
+        return;
+      }
+
+      try {
+        // Chuyển đổi sang number nếu cần
+        const idsAsNumbers = selectedIds.map(id => {
+          const numId = parseInt(id);
+          if (isNaN(numId)) {
+            console.error('Invalid ID:', id);
+            return null;
+          }
+          return numId;
+        }).filter(id => id !== null);
+        
+        console.log('idsAsNumbers:', idsAsNumbers);
+        
+        if (idsAsNumbers.length === 0) {
+          alert("Không có ID hợp lệ để xóa.");
+          return;
+        }
+        
+        const payload = { 
+          ids: idsAsNumbers,
+          area: area 
+        };
+        
+        console.log('Payload gửi đi:', payload);
+        
+        const response = await axios.delete("http://localhost:5000/deleteExamSession", { 
+          data: payload,
+          headers: {
+            'Content-Type': 'application/json'
+          }
+        });
+
+        if (response.status === 200) {
+          // Cập nhật UI bằng cách loại bỏ các hàng đã xóa
+          setRows((prevRows) => prevRows.filter((row) => !idsAsNumbers.includes(row.id)));
+          setSelectionModel([]);
+          
+          alert(`${response.data.message}`);
+        }
+      } catch (error) {
+        console.error('Lỗi khi xóa:', error);
+        const errorMessage = error.response?.data?.error || error.message;
+        alert(`Lỗi khi xóa: ${errorMessage}`);
+      } finally {
+        handleCloseDeleteConfirm();
+      }
+    };
 
   const columns = [
     { field: 'id', headerName: 'ID', width: 70 },
@@ -128,12 +196,36 @@ export default function DatTable({ rows, setRows, area }) {
     <LocalizationProvider dateAdapter={AdapterDayjs}>
       <Box sx={{ px: 0, height: 500, width: '100%' }}>
         <Toolbar sx={{ mb: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <Typography variant="h5" sx={{ fontWeight: 'bold' }}> Dữ liệu quản lý ca thi </Typography>
-            <Box>
-                <Button startIcon={<AddIcon />} onClick={handleOpenAddDialog} sx={{ mr: 1 }}>Thêm ca thi</Button>
-                <Button startIcon={<DeleteIcon />} onClick={handleOpenDeleteConfirm} color="error" disabled={selectionModel.length === 0}> Xóa</Button>
-            </Box>
+          <Typography variant="h5" sx={{ fontWeight: 'bold' }}>
+            Dữ liệu quản lý ca thi
+          </Typography>
+          <Box>
+            <Button startIcon={<AddIcon />} onClick={handleOpenAddDialog} sx={{ mr: 1 }}>
+              Thêm ca thi
+            </Button>
+            <Button 
+              startIcon={<DeleteIcon />} 
+              onClick={handleOpenDeleteConfirm} 
+              color="error" 
+              disabled={getSelectedCount() === 0}
+            >
+              Xóa ({getSelectedCount()})
+            </Button>
+          </Box>
         </Toolbar>
+
+        <DataGrid
+          rows={rows}
+          columns={columns}
+          getRowId={(row) => row.id}
+          selectionModel={selectionModel}
+          onSelectionModelChange={(newSelectionModel) => {
+            console.log('DataGrid onRowSelectionModelChange:', newSelectionModel);
+            setSelectionModel(newSelectionModel);
+          }}
+          checkboxSelection
+          disableSelectionOnClick 
+        />
 
         <DataGrid
           rows={rows}
@@ -149,11 +241,15 @@ export default function DatTable({ rows, setRows, area }) {
         <Dialog open={openDeleteConfirm} onClose={handleCloseDeleteConfirm}>
           <DialogTitle>Xác nhận xóa</DialogTitle>
           <DialogContent>
-              <DialogContentText>Bạn có chắc chắn muốn xóa {selectionModel.length} ca thi đã chọn không?</DialogContentText>
+            <DialogContentText>
+              Bạn có chắc chắn muốn xóa {getSelectedCount()} ca thi đã chọn không?
+            </DialogContentText>
           </DialogContent>
           <DialogActions>
-              <Button onClick={handleCloseDeleteConfirm}>Hủy</Button>
-              <Button onClick={handleConfirmDelete} color="error" autoFocus>Xóa</Button>
+            <Button onClick={handleCloseDeleteConfirm}>Hủy</Button>
+            <Button onClick={handleConfirmDelete} color="error" autoFocus>
+              Xóa
+            </Button>
           </DialogActions>
         </Dialog>
 
