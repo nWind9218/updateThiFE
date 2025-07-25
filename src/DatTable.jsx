@@ -21,25 +21,21 @@ export default function DatTable({ rows, setRows, area }) {
   });
   const [addDialogErrors, setAddDialogErrors] = useState({});
 
+  // Debug: Log selectionModel mỗi khi thay đổi
+  useEffect(() => {
+    console.log('=== SELECTION MODEL CHANGED ===');
+    console.log('selectionModel:', selectionModel);
+    console.log('Type:', typeof selectionModel);
+    console.log('Is Array:', Array.isArray(selectionModel));
+    console.log('Length:', selectionModel?.length);
+    console.log('================================');
+  }, [selectionModel]);
+
   // Helper function để lấy số lượng items được chọn
   const getSelectedCount = () => {
-    console.log('getSelectedCount called with:', selectionModel);
-    
     if (Array.isArray(selectionModel)) {
-      console.log('selectionModel is array, length:', selectionModel.length);
       return selectionModel.length;
     }
-    if (selectionModel && typeof selectionModel === 'object') {
-      if (selectionModel.ids && typeof selectionModel.ids === 'object') {
-        const idsCount = Object.keys(selectionModel.ids).length;
-        console.log('selectionModel has ids property, count:', idsCount);
-        return Object.keys(selectionModel.ids).length;
-      }
-      const objectKeys = Object.keys(selectionModel);
-      console.log('selectionModel is object, keys:', objectKeys);
-      return objectKeys.length;
-    }
-    console.log('selectionModel is neither array nor object');
     return 0;
   };
 
@@ -53,7 +49,6 @@ export default function DatTable({ rows, setRows, area }) {
   const handleAddDialogChange = (field, value) => setNewRowData(prev => ({ ...prev, [field]: value }));
 
   const handleSaveAddDialog = async () => {
-    // Thêm validation nếu cần
     try {
       const dataToSend = {
         ca_thi: newRowData.ca,
@@ -68,10 +63,8 @@ export default function DatTable({ rows, setRows, area }) {
       const response = await axios.post("http://localhost:5000/addExamSession", dataToSend);
 
       if (response.status === 201) {
-        // Dùng chính dữ liệu server trả về để cập nhật UI, đảm bảo ID chính xác
         const newRowFromServer = response.data.data;
         
-        // Chuyển đổi dữ liệu trả về để khớp với cấu trúc `rows` của bạn
         const rowToAdd = {
           id: newRowFromServer.id,
           ca: newRowFromServer.ca_thi,
@@ -90,91 +83,71 @@ export default function DatTable({ rows, setRows, area }) {
       console.error("Lỗi khi thêm ca thi:", error);
     }
   };
+
   // --- LOGIC XÓA ---
-    const handleOpenDeleteConfirm = () => {
-      console.log('Opening delete confirm, selected count:', getSelectedCount());
-      setOpenDeleteConfirm(true);
-    };
+  const handleOpenDeleteConfirm = () => {
+    console.log('Opening delete confirm, selected count:', getSelectedCount());
+    setOpenDeleteConfirm(true);
+  };
+  
+  const handleCloseDeleteConfirm = () => setOpenDeleteConfirm(false);
+  
+  const handleConfirmDelete = async () => {
+    console.log('=== DELETE PROCESS START ===');
+    console.log('selectionModel:', selectionModel);
     
-    const handleCloseDeleteConfirm = () => setOpenDeleteConfirm(false);
-    
-    const handleConfirmDelete = async () => {
-      console.log('=== DELETE PROCESS START ===');
-      console.log('selectionModel:', selectionModel);
-      console.log('selectionModel type:', typeof selectionModel);
-      console.log('selectionModel is array:', Array.isArray(selectionModel));
-      
-      // Cải tiến logic xử lý selectedIds
-      let selectedIds = [];
-      
-      if (Array.isArray(selectionModel)) {
-        selectedIds = [...selectionModel]; // Clone array
-        console.log('Case 1 - Array:', selectedIds);
-      } else if (selectionModel && typeof selectionModel === 'object') {
-        if (selectionModel.ids && typeof selectionModel.ids === 'object') {
-          selectedIds = Object.keys(selectionModel.ids);
-          console.log('Case 2 - Object with ids:', selectedIds);
-        } else {
-          // Trường hợp object khác
-          selectedIds = Object.keys(selectionModel);
-          console.log('Case 3 - Plain object:', selectedIds);
+    if (!Array.isArray(selectionModel) || selectionModel.length === 0) {
+      alert("Vui lòng chọn ít nhất một ca thi để xóa.");
+      return;
+    }
+
+    try {
+      // Chuyển đổi sang number
+      const idsAsNumbers = selectionModel.map(id => {
+        const numId = parseInt(id);
+        if (isNaN(numId)) {
+          console.error('Invalid ID:', id);
+          return null;
         }
-      }
+        return numId;
+      }).filter(id => id !== null);
       
-      console.log('selectedIds after processing:', selectedIds);
+      console.log('idsAsNumbers:', idsAsNumbers);
       
-      if (!selectedIds || selectedIds.length === 0) {
-        alert("Vui lòng chọn ít nhất một ca thi để xóa.");
+      if (idsAsNumbers.length === 0) {
+        alert("Không có ID hợp lệ để xóa.");
         return;
       }
-
-      try {
-        // Chuyển đổi sang number nếu cần
-        const idsAsNumbers = selectedIds.map(id => {
-          const numId = parseInt(id);
-          if (isNaN(numId)) {
-            console.error('Invalid ID:', id);
-            return null;
-          }
-          return numId;
-        }).filter(id => id !== null);
-        
-        console.log('idsAsNumbers:', idsAsNumbers);
-        
-        if (idsAsNumbers.length === 0) {
-          alert("Không có ID hợp lệ để xóa.");
-          return;
+      
+      const payload = { 
+        ids: idsAsNumbers,
+        area: area 
+      };
+      
+      console.log('Payload gửi đi:', payload);
+      
+      const response = await axios.delete("http://localhost:5000/deleteExamSession", { 
+        data: payload,
+        headers: {
+          'Content-Type': 'application/json'
         }
-        
-        const payload = { 
-          ids: idsAsNumbers,
-          area: area 
-        };
-        
-        console.log('Payload gửi đi:', payload);
-        
-        const response = await axios.delete("http://localhost:5000/deleteExamSession", { 
-          data: payload,
-          headers: {
-            'Content-Type': 'application/json'
-          }
-        });
+      });
 
-        if (response.status === 200) {
-          // Cập nhật UI bằng cách loại bỏ các hàng đã xóa
-          setRows((prevRows) => prevRows.filter((row) => !idsAsNumbers.includes(row.id)));
-          setSelectionModel([]);
-          
-          alert(`${response.data.message}`);
-        }
-      } catch (error) {
-        console.error('Lỗi khi xóa:', error);
-        const errorMessage = error.response?.data?.error || error.message;
-        alert(`Lỗi khi xóa: ${errorMessage}`);
-      } finally {
-        handleCloseDeleteConfirm();
+      if (response.status === 200) {
+        // Cập nhật UI bằng cách loại bỏ các hàng đã xóa
+        setRows((prevRows) => prevRows.filter((row) => !idsAsNumbers.includes(row.id)));
+        setSelectionModel([]);
+        
+        alert(`${response.data.message}`);
       }
-    };
+    } catch (error) {
+      console.error('Lỗi khi xóa:', error);
+      const errorMessage = error.response?.data?.error || error.message;
+      alert(`Lỗi khi xóa: ${errorMessage}`);
+    } finally {
+      handleCloseDeleteConfirm();
+    }
+  };
 
   const columns = [
     { field: 'id', headerName: 'ID', width: 70 },
@@ -183,7 +156,9 @@ export default function DatTable({ rows, setRows, area }) {
       field: 'shift', 
       headerName: 'Buổi', 
       width: 120,
-      valueGetter: (params) => params.value?.includes('sáng') ? 'Sáng' : 'Chiều',
+      valueGetter: (value, row) => {
+        return row.shift?.includes('sáng') ? 'Sáng' : 'Chiều';
+      },
     },
     { field: 'date', headerName: 'Ngày', width: 150 },
     { field: 'time', headerName: 'Thời gian', width: 150 },
@@ -214,29 +189,20 @@ export default function DatTable({ rows, setRows, area }) {
           </Box>
         </Toolbar>
 
+        {/* CHỈ GIỮ LẠI 1 DATAGRID - ĐÂY LÀ VẤN ĐỀ CHÍNH! */}
         <DataGrid
           rows={rows}
           columns={columns}
           getRowId={(row) => row.id}
           selectionModel={selectionModel}
           onSelectionModelChange={(newSelectionModel) => {
-            console.log('DataGrid onRowSelectionModelChange:', newSelectionModel);
+            console.log('DataGrid selection changed:', newSelectionModel);
             setSelectionModel(newSelectionModel);
           }}
           checkboxSelection
           disableSelectionOnClick 
         />
 
-        <DataGrid
-          rows={rows}
-          columns={columns}
-          getRowId={(row) => row.id} 
-          onRowSelectionModelChange={(newSelectionModel) => {
-            setSelectionModel(newSelectionModel);
-          }}
-          checkboxSelection
-          disableRowSelectionOnClick
-        />
         {/* Delete Confirmation Dialog */}
         <Dialog open={openDeleteConfirm} onClose={handleCloseDeleteConfirm}>
           <DialogTitle>Xác nhận xóa</DialogTitle>
@@ -255,35 +221,54 @@ export default function DatTable({ rows, setRows, area }) {
 
         {/* Add Dialog */}
         <Dialog open={openAddDialog} onClose={handleCloseAddDialog}>
-            <DialogTitle>Thêm ca thi mới</DialogTitle>
-            <DialogContent>
-              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: 1, minWidth: 400 }}>
-                <FormControl fullWidth>
-                  <InputLabel>Ca</InputLabel>
-                  <Select label="Ca" value={newRowData.ca} onChange={(e) => handleAddDialogChange('ca', e.target.value)}>
-                    <MenuItem value="Ca 1">Ca 1</MenuItem>
-                    <MenuItem value="Ca 2">Ca 2</MenuItem>
-                    <MenuItem value="Ca 3">Ca 3</MenuItem>
-                    <MenuItem value="Ca 4">Ca 4</MenuItem>
-                  </Select>
-                </FormControl>
-                <FormControl fullWidth>
-                  <InputLabel>Buổi</InputLabel>
-                  <Select label="Buổi" value={newRowData.shift} onChange={(e) => handleAddDialogChange('shift', e.target.value)}>
-                    <MenuItem value="Sáng">Sáng</MenuItem>
-                    <MenuItem value="Chiều">Chiều</MenuItem>
-                  </Select>
-                </FormControl>
-                <DatePicker label="Ngày" value={newRowData.date} onChange={(newValue) => handleAddDialogChange('date', newValue)} format="DD/MM/YYYY"/>
-                <TextField label="Thời gian" value={newRowData.time} onChange={(e) => handleAddDialogChange('time', e.target.value)} placeholder="Ví dụ: 08:00 - 09:30"/>
-                <TextField label="Địa điểm" value={newRowData.location} onChange={(e) => handleAddDialogChange('location', e.target.value)}/>
-                <TextField label="Slot" type="number" value={newRowData.slot} onChange={(e) => handleAddDialogChange('slot', e.target.value)}/>
-              </Box>
-            </DialogContent>
-            <DialogActions>
-              <Button onClick={handleCloseAddDialog}>Hủy</Button>
-              <Button onClick={handleSaveAddDialog} color="primary">Thêm</Button>
-            </DialogActions>
+          <DialogTitle>Thêm ca thi mới</DialogTitle>
+          <DialogContent>
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: 1, minWidth: 400 }}>
+              <FormControl fullWidth>
+                <InputLabel>Ca</InputLabel>
+                <Select label="Ca" value={newRowData.ca} onChange={(e) => handleAddDialogChange('ca', e.target.value)}>
+                  <MenuItem value="Ca 1">Ca 1</MenuItem>
+                  <MenuItem value="Ca 2">Ca 2</MenuItem>
+                  <MenuItem value="Ca 3">Ca 3</MenuItem>
+                  <MenuItem value="Ca 4">Ca 4</MenuItem>
+                </Select>
+              </FormControl>
+              <FormControl fullWidth>
+                <InputLabel>Buổi</InputLabel>
+                <Select label="Buổi" value={newRowData.shift} onChange={(e) => handleAddDialogChange('shift', e.target.value)}>
+                  <MenuItem value="Sáng">Sáng</MenuItem>
+                  <MenuItem value="Chiều">Chiều</MenuItem>
+                </Select>
+              </FormControl>
+              <DatePicker 
+                label="Ngày" 
+                value={newRowData.date} 
+                onChange={(newValue) => handleAddDialogChange('date', newValue)} 
+                format="DD/MM/YYYY"
+              />
+              <TextField 
+                label="Thời gian" 
+                value={newRowData.time} 
+                onChange={(e) => handleAddDialogChange('time', e.target.value)} 
+                placeholder="Ví dụ: 08:00 - 09:30"
+              />
+              <TextField 
+                label="Địa điểm" 
+                value={newRowData.location} 
+                onChange={(e) => handleAddDialogChange('location', e.target.value)}
+              />
+              <TextField 
+                label="Slot" 
+                type="number" 
+                value={newRowData.slot} 
+                onChange={(e) => handleAddDialogChange('slot', e.target.value)}
+              />
+            </Box>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={handleCloseAddDialog}>Hủy</Button>
+            <Button onClick={handleSaveAddDialog} color="primary">Thêm</Button>
+          </DialogActions>
         </Dialog>
       </Box>
     </LocalizationProvider>
