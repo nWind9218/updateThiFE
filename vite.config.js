@@ -9,6 +9,6 @@ export default defineConfig({
     allowedHosts: [
       'update-tinz.aipencil.name.vn'
     ],
-    port: 5174,
+    port: 5176,
   }
 })

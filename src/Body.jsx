@@ -23,88 +23,59 @@ import React, { useEffect, useState } from "react";
   //   { value: "Ca 3 buổi chiều", time: "17h00 - 18h30"}
   // ];
   // const capitalize = (str) => str.charAt(0).toUpperCase() + str.slice(1);// hello => Hello
-  const Body = () => {
-    const [address, setAddress] = useState("Hà Nội");
-    const [reload, setReload] = useState(false)
-    const [, setShift] = useState("");
-    const [, setDate] = useState(null);
-    const [rows, setRows] = useState([]);
-    const initialShift = "";
-    const initialDate = null;
-    const initialAddress = "Hà Nội";
-    useEffect(() => {
-      const fetchData = async () => {
-        let data = null
-        try {
-          if (address == "Hà Nội"){
-            const response = await axios.get("https://server-tinz.aipencil.name.vn/hanoi")
-            data = response.data
-          
-          }
-          else if (address == "Đà Nẵng"){
-            const response = await axios.get("https://server-tinz.aipencil.name.vn/danang")
-            data = response.data
-          }
-          else if (address == "TP. Hồ Chí Minh"){
-            const response = await axios.get("https://server-tinz.aipencil.name.vn/tphcm")
-            data = response.data
-          }
-          // Sửa distinct
-          // const distinctList = (() => {
-          //   const map = new Map();
+const Body = () => {
+  const [address, setAddress] = useState("Hà Nội");
+  const [reload, setReload] = useState(false);
+  const [rows, setRows] = useState([]);
 
-          //   for (const item of data) {
-          //     const key = `${item.buoi}|${item.dia_diem}|${item.slot}|${item.ngay_thi}`;
-          //     item.buoi = (typeof item?.buoi === 'string')? (item.buoi.includes("sáng") ? "Sáng"
-          //         : item.buoi.includes("chiều") ? "Chiều"
-          //         : "Không có dữ liệu")
-          //       : "Không có dữ liệu"
-          //     item.date = item?.ngay_thi
-          //       ? item.ngay_thi.trim()
-          //       : "Không có dữ liệu"
-          //     if (!map.has(key)) map.set(key, item);
-          //   }
-            
-          //   return Array.from(map.values());
-          // })();
-          let id = 0
-          const processedData = data.map((item) => {
+  useEffect(() => {
+    const fetchData = async () => {
+      let data = []; 
+      try {
+        let endpoint = '';
+        if (address === "Hà Nội") endpoint = "http://localhost:5000/hanoi";
+        else if (address === "Đà Nẵng") endpoint = "http://localhost:5000/danang";
+        else if (address === "TP. Hồ Chí Minh") endpoint = "http://localhost:5000/tphcm";
+
+        if (endpoint) {
+            const response = await axios.get(endpoint);
+            data = response.data;
+        }
+        
+        // Xử lý dữ liệu trả về từ API
+        const processedData = data.map((item, index) => {
           return {
-            id : id++,
+            // Đảm bảo ID luôn tồn tại - sử dụng ID từ database hoặc tạo ID tạm thời
+            id: item.id || `temp_${Date.now()}_${index}`, 
+            
             ca: item.ca_thi || "Không có dữ liệu",
-            slot: item.slot, 
-            shift: (typeof item?.buoi === 'string')? (item.buoi.includes("sáng") ? "Sáng"
-                  : item.buoi.includes("chiều") ? "Chiều"
-                  : "Không có dữ liệu")
-                : "Không có dữ liệu",
-            date: item?.ngay_thi
-                ? item.ngay_thi.trim()
-                : "Không có dữ liệu",
-            location: typeof item?.dia_diem === 'string'
-                ? item.dia_diem.replace("Thi tại ", "")
-                : "Khác",
-            time: item?.gio_thi || "Không có dữ liệu",
+            slot: item.slot,
+            
+            // Giữ nguyên giá trị `buổi sáng`/`buổi chiều` từ DB
+            // Việc chuyển đổi sang 'Sáng'/'Chiều' sẽ do DatTable đảm nhận ở tầng hiển thị
+            shift: item.buoi || "Không có dữ liệu", 
+            
+            date: item.ngay_thi ? item.ngay_thi.trim() : "Không có dữ liệu",
+            location: item.dia_diem ? item.dia_diem.replace("Thi tại ", "") : "Khác",
+            time: item.gio_thi || "Không có dữ liệu", 
             area: address
           };
         });
-          setRows(processedData)
-        }
-        catch(error){
-          console.error("Lỗi khi lấy dữ liệu: ", error)
-        }
+
+        setRows(processedData);
+
+      } catch (error) {
+        console.error("Lỗi khi lấy dữ liệu: ", error);
+        setRows([]);
       }
-      fetchData()
-    }, [address, reload]);
-    const handleResetFilter = () => {
-        setAddress(initialAddress);
-        setShift(initialShift);
-        setDate(initialDate);
-      };
-    const handleFilter = () => {
-      // let result = [...rows];
-      setReload(!reload)
-      // setFilteredRows(result);
     };
+
+    fetchData();
+  }, [address, reload]);
+
+  const handleFilter = () => {
+    setReload(!reload);
+  };
     return (
       <Box
         sx={{
@@ -183,24 +154,7 @@ import React, { useEffect, useState } from "react";
                       }}
                       onClick={handleFilter}
                     >
-                      Reload
-                    </Button>
-                    <Button
-                      variant="outlined"
-                      color="secondary"
-                      size="large"
-                      disabled = "true"
-                      sx={{
-                        fontWeight: 700,
-                        px: 4,
-                        borderRadius: 2,
-                        textTransform: "none",
-                        letterSpacing: 1,
-                        ml: 2,
-                      }}
-                      onClick={handleResetFilter}
-                    >
-                      Reset
+                      Reload  
                     </Button>
                   </Box>
                 </Grid>
@@ -219,7 +173,7 @@ import React, { useEffect, useState } from "react";
             minHeight: 500,
           }}
         >
-          <DatTable rows={rows} setRows={setRows} area={address} reload ={reload} setReload = {setReload}/>
+          <DatTable rows={rows} setRows={setRows} area={address} />
         </Box>
       </Box>
     );
